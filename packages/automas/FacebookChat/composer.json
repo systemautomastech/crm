@@ -1,0 +1,25 @@
+{
+    "name": "automas/facebook-chat",
+    "description": "Description for facebook-chat package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\FacebookChat\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\FacebookChat\\Providers\\FacebookChatServiceProvider"
+            ]
+        }
+    }
+}

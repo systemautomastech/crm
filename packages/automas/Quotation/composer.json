@@ -1,0 +1,25 @@
+{
+    "name": "automas/quotation",
+    "description": "Description for quotation package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\Quotation\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\Quotation\\Providers\\QuotationServiceProvider"
+            ]
+        }
+    }
+}

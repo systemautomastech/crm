@@ -1,0 +1,25 @@
+{
+    "name": "automas/double-entry",
+    "description": "Description for double-entry package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\DoubleEntry\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\DoubleEntry\\Providers\\DoubleEntryServiceProvider"
+            ]
+        }
+    }
+}

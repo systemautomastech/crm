@@ -1,0 +1,10 @@
+{
+    "name": "WhatsAppChat",
+    "alias": "WhatsApp Chat",
+    "description": "",
+    "priority": 862,
+    "version": 5.0,
+    "monthly_price": 0,
+    "yearly_price": 0,
+    "package_name": "whats-app-chat"
+}

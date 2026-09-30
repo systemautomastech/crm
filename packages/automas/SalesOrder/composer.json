@@ -1,0 +1,25 @@
+{
+    "name": "automas/salesorder",
+    "description": "SalesOrder package for AutomasERP",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\SalesOrder\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\SalesOrder\\Providers\\SalesOrderServiceProvider"
+            ]
+        }
+    }
+}

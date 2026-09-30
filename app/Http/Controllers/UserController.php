@@ -1,0 +1,515 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use App\Models\LoginHistory;
+use App\Models\Plan;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
+use App\Http\Requests\ChangePasswordRequest;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use App\Events\CreateUser;
+use App\Models\EmailTemplate;
+use App\Models\Order;
+use App\Models\AddOn;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Session;
+use App\Services\UserDeletionService;
+use Illuminate\Http\Request;
+
+class UserController extends Controller
+{
+    public function index()
+    {
+        if(Auth::user()->can('manage-users')){
+            $users = User::query()
+                ->with('roles')
+                ->where(function($q) {
+                    if(Auth::user()->can('manage-any-users')) {
+                        $q->where('created_by', creatorId());
+                    } elseif(Auth::user()->can('manage-own-users')) {
+                        $q->where('creator_id', Auth::id());
+                    } else {
+                        $q->whereRaw('1 = 0');
+                    }
+                })
+                ->whereNotIn('type', ['client', 'vendor'])
+                ->when(request('name'), fn($q) => $q->where('name', 'like', '%' . request('name') . '%'))
+                ->when(request('email'), fn($q) => $q->where('email', 'like', '%' . request('email') . '%'))
+                ->when(request('role'), fn($q) => $q->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
+                    ->where('model_has_roles.role_id', request('role'))
+                    ->where('model_has_roles.model_type', User::class))
+                ->when(request('is_enable_login') !== null, fn($q) => $q->where('is_enable_login', request('is_enable_login')))
+                ->when(request('sort'), fn($q) => $q->orderBy(request('sort'), request('direction', 'asc')), fn($q) => $q->latest())
+                ->select('users.*')
+                ->paginate(request('per_page', 10))
+                ->withQueryString();
+
+            $users->getCollection()->transform(function ($user) {
+                $user->is_online = Cache::has("user_online_{$user->id}");
+                return $user;
+            });
+
+            $roles = Role::where('created_by', creatorId())->whereNotIn('name', ['client', 'vendor'])->pluck('label', 'id');
+            $plans = Plan::where('status', 1)->get();
+            $activeModules = AddOn::where('is_enable', 1)->where('for_admin', false)
+                ->whereNotIn('module', User::$superadmin_activated_module)
+                ->select('module', 'name', 'image')
+                ->get();
+
+            return Inertia::render('users/index', [
+                'users' => $users,
+                'roles' => $roles,
+                'plans' => $plans,
+                'activeModules' => $activeModules,
+            ]);
+        }
+        else{
+            return back()->with('error', __('Permission denied'));
+        }
+    }
+
+    public function clientsVendors(Request $request)
+    {
+        if (!Auth::user()->can('manage-users')) {
+            return back()->with('error', __('Permission denied'));
+        }
+
+        $isAccountActive = module_is_active('Account');
+        $creatorId = creatorId();
+
+        if ($isAccountActive) {
+            $customers = \Automas\Account\Models\Customer::query()
+                ->with('user:id,name,avatar,is_disable,email,mobile_no')
+                ->where('created_by', $creatorId)
+                ->when($request->filled('company_name'), fn($q) => $q->where('company_name', 'like', '%' . $request->company_name . '%'))
+                ->when($request->filled('customer_code'), fn($q) => $q->where('customer_code', 'like', '%' . $request->customer_code . '%'))
+                ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+                    $s = $request->search;
+                    $sub->where('company_name', 'like', "%{$s}%")
+                        ->orWhere('customer_code', 'like', "%{$s}%")
+                        ->orWhere('contact_person_name', 'like', "%{$s}%")
+                        ->orWhere('contact_person_email', 'like', "%{$s}%");
+                }))
+                ->when($request->filled('sort'), fn($q) => $q->orderBy($request->sort, $request->get('direction', 'asc')), fn($q) => $q->latest())
+                ->paginate($request->get('per_page', 10), ['*'], 'customers_page')
+                ->withQueryString();
+
+            $vendors = \Automas\Account\Models\Vendor::query()
+                ->with('user:id,name,avatar,is_disable,email,mobile_no')
+                ->where('created_by', $creatorId)
+                ->when($request->filled('company_name'), fn($q) => $q->where('company_name', 'like', '%' . $request->company_name . '%'))
+                ->when($request->filled('vendor_code'), fn($q) => $q->where('vendor_code', 'like', '%' . $request->vendor_code . '%'))
+                ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+                    $s = $request->search;
+                    $sub->where('company_name', 'like', "%{$s}%")
+                        ->orWhere('vendor_code', 'like', "%{$s}%")
+                        ->orWhere('contact_person_name', 'like', "%{$s}%")
+                        ->orWhere('contact_person_email', 'like', "%{$s}%");
+                }))
+                ->when($request->filled('sort'), fn($q) => $q->orderBy($request->sort, $request->get('direction', 'asc')), fn($q) => $q->latest())
+                ->paginate($request->get('per_page', 10), ['*'], 'vendors_page')
+                ->withQueryString();
+
+            $clientUsers = User::where('type', 'client')
+                ->where('created_by', $creatorId)
+                ->whereNotIn('id', \Automas\Account\Models\Customer::pluck('user_id')->filter())
+                ->select('id', 'name', 'email', 'mobile_no')
+                ->get();
+
+            $vendorUsers = User::where('type', 'vendor')
+                ->where('created_by', $creatorId)
+                ->whereNotIn('id', \Automas\Account\Models\Vendor::pluck('user_id')->filter())
+                ->select('id', 'name', 'email', 'mobile_no')
+                ->get();
+
+            return Inertia::render('users/clients-vendors', [
+                'isAccountActive' => true,
+                'customers' => $customers,
+                'vendors' => $vendors,
+                'clientUsers' => $clientUsers,
+                'vendorUsers' => $vendorUsers,
+            ]);
+        }
+
+        $clients = User::query()
+            ->with('roles')
+            ->where('created_by', $creatorId)
+            ->where('type', 'client')
+            ->when($request->filled('name'), fn($q) => $q->where('name', 'like', '%' . $request->name . '%'))
+            ->when($request->filled('email'), fn($q) => $q->where('email', 'like', '%' . $request->email . '%'))
+            ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+                $s = $request->search;
+                $sub->where('name', 'like', "%{$s}%")
+                    ->orWhere('email', 'like', "%{$s}%");
+            }))
+            ->when($request->filled('sort'), fn($q) => $q->orderBy($request->sort, $request->get('direction', 'asc')), fn($q) => $q->latest())
+            ->paginate($request->get('per_page', 10), ['*'], 'clients_page')
+            ->withQueryString();
+
+        $vendors = User::query()
+            ->with('roles')
+            ->where('created_by', $creatorId)
+            ->where('type', 'vendor')
+            ->when($request->filled('name'), fn($q) => $q->where('name', 'like', '%' . $request->name . '%'))
+            ->when($request->filled('email'), fn($q) => $q->where('email', 'like', '%' . $request->email . '%'))
+            ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+                $s = $request->search;
+                $sub->where('name', 'like', "%{$s}%")
+                    ->orWhere('email', 'like', "%{$s}%");
+            }))
+            ->when($request->filled('sort'), fn($q) => $q->orderBy($request->sort, $request->get('direction', 'asc')), fn($q) => $q->latest())
+            ->paginate($request->get('per_page', 10), ['*'], 'vendors_page')
+            ->withQueryString();
+
+        $clientRole = Role::where('created_by', $creatorId)->where('name', 'client')->first();
+        $vendorRole = Role::where('created_by', $creatorId)->where('name', 'vendor')->first();
+
+        return Inertia::render('users/clients-vendors', [
+            'isAccountActive' => false,
+            'clients' => $clients,
+            'vendors' => $vendors,
+            'clientRole' => $clientRole,
+            'vendorRole' => $vendorRole,
+        ]);
+    }
+
+    public function store(StoreUserRequest $request)
+    {
+        if(Auth::user()->can('create-users')){
+            $checkUser = canCreateUser();
+            if (!$checkUser['can_create']) {
+                return redirect()->route('users.index')->with('error', $checkUser['message']);
+            }
+
+            $validated = $request->validated();
+            $validated['is_enable_login'] = $request->boolean('is_enable_login', true);
+
+            $role = Role::find($validated['type']);
+            $enableEmailVerification = admin_setting('enableEmailVerification');
+
+            $user = new User();
+            $user->name = $validated['name'];
+            $user->email = $validated['email'];
+            $user->mobile_no = $validated['mobile_no'];
+            $user->password = Hash::make($validated['password']);
+            $user->type = Auth::user()->type == 'superadmin' ? 'company' : ($role->name ?? 'staff');
+            $user->is_enable_login = $validated['is_enable_login'];
+            $user->lang = company_setting('defaultLanguage') ?? 'en';
+            $user->email_verified_at = $enableEmailVerification === 'on' ? null : now();
+            $user->creator_id = Auth::id();
+            $user->created_by = creatorId();
+            $user->save();
+
+            if(Auth::user()->type == 'superadmin')
+            {
+                User::CompanySetting($user->id);
+                User::MakeRole($user->id);
+                $role = Role::findByName('company');
+            }
+
+            $user->assignRole($role);
+
+            // Dispatch event for packages to handle their fields
+            CreateUser::dispatch($request, $user);
+
+             // Send welcome email
+            if(company_setting('New User') == 'on') {
+                $emailData = [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'password' => $validated['password'],
+                ];
+
+                $message = EmailTemplate::sendEmailTemplate('New User', [$user->email], $emailData);
+                if($message['is_success'] == false && !empty($message['error'])) {
+                    return back()
+                        ->with('success', __('The user has been created successfully.'))
+                        ->with('error', $message['error']);
+                }
+            }
+
+            if ($enableEmailVerification === 'on') {
+                // Apply dynamic mail configuration
+                SetConfigEmail(creatorId());
+                $user->sendEmailVerificationNotification();
+            }
+
+            return redirect()->route('users.index')->with('success', __('The user has been created successfully.'));
+        }
+        else{
+            return redirect()->route('users.index')->with('error', __('Permission denied'));
+        }
+    }
+
+    public function update(UpdateUserRequest $request, User $user)
+    {
+        if(Auth::user()->can('edit-users')){
+            $validated = $request->validated();
+            $validated['is_enable_login'] = $request->boolean('is_enable_login', true);
+
+            $user->name = $validated['name'];
+            $user->email = $validated['email'];
+            $user->mobile_no = $validated['mobile_no'];
+            $user->is_enable_login = $validated['is_enable_login'];
+
+            if (!empty($validated['type'])) {
+                $role = Role::find($validated['type']);
+                if ($role) {
+                    // First remove existing roles
+                    $user->roles()->detach();
+
+                    // Then assign the new role
+                    $user->assignRole($role);
+
+                    if (Auth::user()->type !== 'superadmin') {
+                        $user->type = $role->name;
+                    }
+                }
+            }
+
+            $user->save();
+
+            return back()->with('success', __('The user details are updated successfully.'));
+        }
+        else{
+            return redirect()->route('users.index')->with('error', __('Permission denied'));
+        }
+    }
+
+    public function changePassword(ChangePasswordRequest $request, User $user)
+    {
+        if(Auth::user()->can('change-password-users') && $user->created_by == creatorId() ){
+            $validated = $request->validated();
+            $user->password = Hash::make($validated['password']);
+            $user->save();
+
+            return redirect()->route('users.index')->with('success', __('The password changed successfully.'));
+        }
+        else{
+            return redirect()->route('users.index')->with('error', __('Permission denied'));
+        }
+    }
+
+    public function destroy(User $user, UserDeletionService $userDeletionService)
+    {
+        if(Auth::user()->can('delete-users')){
+            $userDeletionService->deleteUser($user);
+
+            return back()->with('success', __('The user has been deleted.'));
+        }
+        else{
+            return redirect()->route('users.index')->with('error', __('Permission denied'));
+        }
+    }
+
+    public function impersonate(User $user)
+    {
+        if (Auth::user()->can('impersonate-users'))
+        {
+            if ($user->id === Auth::id()) {
+                return redirect()->route('users.index')->with('error', __('You cannot login as user yourself'));
+            }
+
+            if ($user->created_by !== creatorId()) {
+                return redirect()->route('users.index')->with('error', __('Permission denied'));
+            }
+
+            // Store the original user ID in session
+            Session::put('impersonator_id', Auth::id());
+
+            // Login as the target user
+            Auth::login($user);
+        }
+        else
+        {
+            return redirect()->route('users.index')->with('error', __('Permission denied'));
+        }
+
+        return redirect()->route('dashboard')->with('success', __('You are now login as user :name', ['name' => $user->name]));
+    }
+
+    public function leaveImpersonation()
+    {
+        if (!Session::has('impersonator_id')) {
+            return redirect()->route('dashboard')->with('error', __('You are not login as user anyone'));
+        }
+
+        $originalUserId = Session::get('impersonator_id');
+        $originalUser = User::find($originalUserId);
+
+        if (!$originalUser) {
+            Session::forget('impersonator_id');
+            return redirect()->route('login')->with('error', __('Original user not found'));
+        }
+
+        Session::forget('impersonator_id');
+        Auth::login($originalUser);
+
+        return redirect()->route('users.index')->with('success', __('You have stopped login as user'));
+    }
+
+    public function adminHub(User $user)
+    {
+        if(Auth::user()->can('view-admin-hub')){
+            if($user->type !== 'company') {
+                return back()->with('error', __('Invalid user type'));
+            }
+
+            $companyUsers = User::query()
+                ->where('created_by', $user->id)
+                ->where('id', '!=', $user->id)
+                ->when(request('name'), function($q) {
+                    $q->where(function($query) {
+                        $query->where('name', 'like', '%' . request('name') . '%');
+                        $query->orWhere('email', 'like', '%' . request('name') . '%');
+                        $query->orWhere('mobile_no', 'like', '%' . request('name') . '%');
+                    });
+                })
+                ->when(request('sort'), fn($q) => $q->orderBy(request('sort'), request('direction', 'asc')), fn($q) => $q->latest())
+                ->get();
+
+            $totalActiveUsers = User::where('created_by', $user->id)
+                ->where('id', '!=', $user->id)
+                ->where('is_enable_login', true)
+                ->count();
+
+            $totalInactiveUsers = User::where('created_by', $user->id)
+                ->where('id', '!=', $user->id)
+                ->where('is_enable_login', false)
+                ->count();
+
+            $roles = Role::where('created_by', $user->id)->pluck('label', 'id');
+            $activePlan = Plan::find($user->active_plan);
+
+            return Inertia::render('users/admin-hub', [
+                'company' => $user,
+                'companyUsers' => $companyUsers,
+                'totalActiveUsers' => $totalActiveUsers,
+                'totalInactiveUsers' => $totalInactiveUsers,
+                'roles' => $roles,
+                'activePlanName' => $activePlan?->name ?? '-',
+            ]);
+        }
+        else{
+            return back()->with('error', __('Permission denied'));
+        }
+    }
+
+    public function toggleStatus(User $user)
+    {
+        if(Auth::user()->can('toggle-status-users')){
+            if(Auth::user()->type !== 'superadmin' && $user->created_by !== creatorId()) {
+                return back()->with('error', __('Permission denied'));
+            }
+
+            $user->is_enable_login = !$user->is_enable_login;
+            $user->is_disable = $user->is_enable_login ? 0 : 1;
+            $user->save();
+
+            return back()->with('success', __('User status updated successfully.'));
+        }
+        else{
+            return back()->with('error', __('Permission denied'));
+        }
+    }
+
+    public function assignPlan(Request $request, User $user)
+    {
+        if(Auth::user()->can('view-upgrade-plan') && Auth::user()->type === 'superadmin'){
+            $request->validate([
+                'plan_id' => 'nullable|exists:plans,id',
+                'duration' => 'nullable|in:Month,Year,Trial',
+            ]);
+
+            $plan = null;
+            if ($request->plan_id) {
+                $plan = Plan::find($request->plan_id);
+            } else {
+                $plan = Plan::where('free_plan', 1)->first();
+            }
+
+            if (!$plan) {
+                return back()->with('error', __('Plan not found.'));
+            }
+
+            $duration = $request->duration ?: 'Month';
+
+            // If custom modules are provided, use them; otherwise use plan's default modules
+            if ($request->has('modules') && is_array($request->modules)) {
+                $modules = implode(',', $request->modules);
+            } else {
+                $modules = is_array($plan->modules) ? implode(',', $plan->modules) : ($plan->modules ?? '');
+            }
+
+            $counter = [
+                'user_counter' => $request->has('user_counter') ? $request->user_counter : ($plan->number_of_users ?? '0'),
+                'storage_limit' => $request->has('storage_limit') ? $request->storage_limit : (($plan->storage_limit ?? 0) / (1024 * 1024)),
+            ];
+
+            $result = assignPlan($plan->id, $duration, $modules, $counter, $user->id);
+
+            if ($result['is_success']) {
+                // For custom module assignments, force active_plan to 1
+                $isCustomPlan = $request->has('modules') && is_array($request->modules);
+                if ($isCustomPlan) {
+                    User::where('id', $user->id)->update(['active_plan' => 1]);
+                }
+
+                $orderID = strtoupper(substr(uniqid(), -12));
+                $order = new Order();
+                $order->order_id = $orderID;
+                $order->name = $user->name;
+                $order->email = $user->email;
+                $order->card_number = null;
+                $order->card_exp_month = null;
+                $order->card_exp_year = null;
+                $order->plan_name = $plan->name;
+                $order->plan_id = $isCustomPlan ? 1 : $plan->id;
+                $order->price = 0;
+                $order->currency = admin_setting('defaultCurrency') ?? 'USD';
+                $order->txn_id = '';
+                $order->payment_type = '-';
+                $order->payment_status = 'succeeded';
+                $order->receipt = null;
+                $order->created_by = $user->id;
+                $order->save();
+
+                return back()->with('success', __('Plan assigned successfully to :name.', ['name' => $user->name]));
+            } else {
+                return back()->with('error', $result['error'] ?? __('Failed to assign plan.'));
+            }
+        }
+        else{
+            return back()->with('error', __('Permission denied'));
+        }
+    }
+
+    public function loginHistory()
+    {
+        if(Auth::user()->can('view-login-history')){
+            $loginHistories = LoginHistory::with('user')
+                ->when(Auth::user()->type !== 'superadmin', fn($q) => $q->where('created_by', creatorId()))
+                ->when(request('user_name'), fn($q) => $q->whereHas('user', fn($q) => $q->where('name', 'like', '%' . request('user_name') . '%')))
+                ->when(request('ip'), fn($q) => $q->where('ip', 'like', '%' . request('ip') . '%'))
+                ->when(request('role'), fn($q) => $q->whereHas('user', fn($q) => $q->where('type', request('role'))))
+                ->when(request('sort'), fn($q) => $q->orderBy(request('sort'), request('direction', 'asc')), fn($q) => $q->latest())
+                ->paginate(request('per_page', 10))
+                ->withQueryString();
+
+            $roles = Role::where('created_by', creatorId())->pluck('label', 'name');
+
+            return Inertia::render('users/login-history', [
+                'loginHistories' => $loginHistories,
+                'roles' => $roles,
+            ]);
+        }
+        else{
+            return back()->with('error', __('Permission denied'));
+        }
+    }
+}

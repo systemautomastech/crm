@@ -1,0 +1,25 @@
+.phone-topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 8px;
+  color: var(--webphone-text-soft);
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: move;
+  user-select: none;
+}
+
+.phone-topbar-left,
+.phone-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.phone-topbar-right {
+  justify-content: flex-end;
+}

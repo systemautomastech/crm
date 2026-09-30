@@ -1,0 +1,98 @@
+<?php
+
+namespace Automas\SalesOrder\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+
+class SalesOrderDelivery extends Model
+{
+    use HasFactory;
+
+    protected $table = 'sales_order_deliveries';
+
+    const STATUS_CREATED   = 'created';
+    const STATUS_ONGOING   = 'ongoing';
+    const STATUS_POSTPONED = 'postponed';
+    const STATUS_DELIVERED = 'delivered';
+    const STATUS_CANCELLED = 'cancelled';
+
+    protected $fillable = [
+        'sales_order_id',
+        'delivery_number',
+        'delivery_date',
+        'notes',
+        'status',
+        'creator_id',
+        'created_by',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'delivery_date' => 'date',
+        ];
+    }
+
+    // ─── Number Generation ──────────────────────────────────────────────────
+
+    public static function generateDeliveryNumber($createdBy = null): string
+    {
+        $createdBy = $createdBy ?? creatorId();
+
+        return DB::transaction(function () use ($createdBy) {
+            $settings = SalesOrderSetting::getSettings($createdBy);
+            $prefix   = $settings['dc_prefix'] ?? 'DC';
+            $next     = (int) ($settings['dc_starting_number'] ?? 1);
+
+            SalesOrderSetting::setSettings(
+                ['dc_starting_number' => (string) ($next + 1)],
+                $createdBy
+            );
+
+            return $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
+        });
+    }
+
+    // ─── Relationships ───────────────────────────────────────────────────────
+
+    public function salesOrder(): BelongsTo
+    {
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(SalesOrderDeliveryItem::class, 'delivery_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    // ─── Lifecycle Hooks ────────────────────────────────────────────────────
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function ($delivery) {
+            if (empty($delivery->delivery_number)) {
+                $delivery->delivery_number = static::generateDeliveryNumber($delivery->created_by);
+            }
+            if (empty($delivery->status)) {
+                $delivery->status = self::STATUS_CREATED;
+            }
+        });
+    }
+}

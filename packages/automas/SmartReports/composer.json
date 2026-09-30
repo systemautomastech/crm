@@ -1,0 +1,22 @@
+{
+    "name": "automas/smart-reports",
+    "description": "Smart Reports module for AutomasERP",
+    "type": "library",
+    "require": {
+        "php": "^8.1",
+        "barryvdh/laravel-dompdf": "^2.0",
+        "maatwebsite/excel": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Automas\\SmartReports\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\SmartReports\\Providers\\SmartReportsServiceProvider"
+            ]
+        }
+    }
+}

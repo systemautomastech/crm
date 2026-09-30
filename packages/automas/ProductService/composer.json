@@ -1,0 +1,25 @@
+{
+    "name": "automas/product-service",
+    "description": "Description for product-service package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\ProductService\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\ProductService\\Providers\\ProductServiceServiceProvider"
+            ]
+        }
+    }
+}

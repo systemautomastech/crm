@@ -1,0 +1,10 @@
+{
+    "name": "SalesOrder",
+    "alias": "SalesOrder",
+    "description": "Standalone Sales Order module for AutomasERP",
+    "priority": 60,
+    "version": "1.0.0",
+    "monthly_price": 0,
+    "yearly_price": 0,
+    "package_name": "salesorder"
+}

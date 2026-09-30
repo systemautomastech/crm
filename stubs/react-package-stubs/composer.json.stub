@@ -1,0 +1,25 @@
+{
+    "name": "automas/$PACKAGE_KEBAB$",
+    "description": "Description for $PACKAGE_KEBAB$ package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\$PACKAGE_NAME$\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\$PACKAGE_NAME$\\Providers\\$PACKAGE_NAME$ServiceProvider"
+            ]
+        }
+    }
+}

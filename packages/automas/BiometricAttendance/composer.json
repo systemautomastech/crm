@@ -1,0 +1,25 @@
+{
+    "name": "automas/biometric-attendance",
+    "description": "Description for biometric-attendance package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\BiometricAttendance\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\BiometricAttendance\\Providers\\BiometricAttendanceServiceProvider"
+            ]
+        }
+    }
+}

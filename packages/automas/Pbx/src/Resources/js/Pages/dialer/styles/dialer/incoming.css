@@ -1,0 +1,105 @@
+.phone-content.incoming {
+  justify-content: center;
+}
+
+.phone-content.incoming .status-pill.incoming {
+  border-radius: 6px;
+  color: var(--webphone-warn-soft);
+  background: var(--webphone-warn);
+  border-color: rgba(251, 191, 36, 0.24);
+}
+
+.incoming-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0 2px;
+}
+
+.incoming-hero {
+  border-radius: 20px;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.98), rgba(255, 249, 240, 0.98));
+  padding: 15px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 10px 24px var(--webphone-shadow);
+}
+
+.incoming-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--webphone-warn);
+  margin-bottom: 10px;
+}
+
+.incoming-kicker span:last-child {
+  color: #334155;
+  letter-spacing: 0.12em;
+}
+
+.incoming-hero h3,
+.active-copy h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.incoming-hero p,
+.active-copy p {
+  margin: 6px 0 0;
+  color: var(--webphone-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.incoming-meta {
+  display: grid;
+  gap: 10px;
+}
+
+.incoming-meta .meta-row,
+.active-meta .meta-row {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(125, 163, 210, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 4px 10px rgba(59, 130, 246, 0.04);
+}
+
+.incoming-meta .meta-row .lookup-item,
+.active-meta .meta-row .lookup-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.meta-label {
+  color: var(--webphone-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  flex-shrink: 0;
+}
+
+.meta-value {
+  color: var(--webphone-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.phone-content.active .active-panel,
+.phone-content.incoming .incoming-hero {
+  animation: float-in 0.32s ease both;
+}

@@ -1,0 +1,25 @@
+{
+    "name": "automas/inventory",
+    "description": "Description for inventory package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\Inventory\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\Inventory\\Providers\\InventoryServiceProvider"
+            ]
+        }
+    }
+}

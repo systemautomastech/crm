@@ -1,0 +1,211 @@
+.dialer-window-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.utility-actions,
+.main-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.utility-actions {
+  margin-top: 0;
+}
+
+.dialer-actions {
+  align-items: stretch;
+}
+
+.dialer-actions .utility-btn,
+.dialer-actions .dialer-action-btn {
+  min-height: 46px;
+}
+
+.dialer-actions .utility-btn {
+  flex: 0.9;
+}
+
+.utility-btn,
+.dialer-action-btn,
+.register-btn {
+  border: 0;
+  border-radius: 14px;
+  border: none !important;
+  padding: 11px 12px;
+  cursor: pointer;
+  color: #f8fafc;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.utility-btn,
+.dialer-action-btn {
+  flex: 1;
+}
+
+.utility-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-only {
+  padding-inline: 0;
+}
+
+.utility-btn {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(125, 163, 210, 0.16);
+  color: var(--webphone-text-soft);
+  font-size: 13px;
+}
+
+.utility-btn:hover {
+  background: rgba(250, 252, 255, 1);
+  border-color: rgba(125, 163, 210, 0.26);
+  color: var(--webphone-text);
+}
+
+.utility-btn:disabled,
+.dialer-action-btn:disabled,
+.register-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  pointer-events: none;
+}
+
+.register-btn {
+  width: 100%;
+  margin-top: 2px;
+  background: linear-gradient(135deg, var(--webphone-accent), var(--webphone-accent-2));
+  box-shadow:
+    0 10px 22px rgba(37, 99, 235, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.register-btn:hover {
+  box-shadow:
+    0 16px 30px rgba(37, 99, 235, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.main-actions {
+  display: grid;
+}
+
+.main-actions.idle,
+.main-actions.ringing {
+  grid-template-columns: 1fr;
+}
+
+.main-actions.incoming {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.main-actions.active {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dialer-action-btn {
+  min-height: 50px;
+  font-size: 15px;
+  width: 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.dialer-action-btn.icon-only {
+  padding: 0;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.rotate-135 {
+  transform: rotate(135deg);
+}
+
+.dialer-action-btn.call,
+.dialer-action-btn.answer {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow:
+    0 12px 24px rgba(34, 197, 94, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.dialer-action-btn.call:hover,
+.dialer-action-btn.answer:hover {
+  box-shadow:
+    0 16px 32px rgba(34, 197, 94, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.dialer-action-btn.reject,
+.dialer-action-btn.hangup {
+  background: linear-gradient(135deg, #f43f5e, #dc2626);
+  box-shadow:
+    0 12px 24px rgba(244, 63, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.dialer-action-btn.reject:hover,
+.dialer-action-btn.hangup:hover {
+  box-shadow:
+    0 16px 32px rgba(244, 63, 94, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.dialer-action-btn.mute,
+.dialer-action-btn.hold {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(125, 163, 210, 0.16);
+  color: var(--webphone-text-soft);
+}
+
+.dialer-action-btn.mute:hover,
+.dialer-action-btn.hold:hover {
+  background: rgba(250, 252, 255, 1);
+  border-color: rgba(125, 163, 210, 0.26);
+}
+
+.dialer-action-btn.mute.active,
+.dialer-action-btn.hold.active {
+  background: rgba(204, 251, 241, 0.96);
+  border-color: rgba(45, 212, 191, 0.38);
+  color: #0f766e;
+}
+
+.dialer-action-btn.full {
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+.main-actions.active .dialer-action-btn {
+  min-height: 44px;
+}
+
+.main-actions.ringing .dialer-action-btn {
+  min-height: 52px;
+  width: 100%;
+}
+
+.register-btn span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialer-actions .dialer-action-btn.full {
+  flex: 1.3;
+}

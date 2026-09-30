@@ -1,0 +1,11 @@
+{
+    "name": "ProductService",
+    "alias": "Product & Service",
+    "description": "This module is for managing products and services.",
+    "keywords": [],
+    "priority": 1,
+    "version": 1.0,
+    "monthly_price": 0,
+    "yearly_price": 0,
+    "package_name": "product-service"
+}

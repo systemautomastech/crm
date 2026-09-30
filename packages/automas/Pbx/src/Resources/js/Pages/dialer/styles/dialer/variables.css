@@ -1,0 +1,22 @@
+:root {
+  --webphone-bg: #000000;
+  --webphone-bg-soft: #eef7ff;
+  --webphone-surface: rgba(255, 255, 255, 0.98);
+  --webphone-surface-strong: rgba(255, 255, 255, 0.92);
+  --webphone-border: rgba(125, 163, 210, 0.18);
+  --webphone-border-strong: rgba(125, 163, 210, 0.26);
+  --webphone-text: #0f172a;
+  --webphone-text-soft: #475569;
+  --webphone-muted: #64748b;
+  --webphone-shadow: rgba(37, 99, 235, 0.06);
+  --webphone-shadow-strong: rgba(37, 99, 235, 0.14);
+  --webphone-accent: #38bdf8;
+  --webphone-accent-2: #2563eb;
+  --webphone-accent-3: #14b8a6;
+  --webphone-success: #16a34a;
+  --webphone-success-soft: rgba(220, 252, 231, 0.96);
+  --webphone-danger: #e11d48;
+  --webphone-danger-soft: rgba(255, 228, 230, 0.98);
+  --webphone-warn: #d97706;
+  --webphone-warn-soft: rgba(255, 251, 235, 0.98);
+}

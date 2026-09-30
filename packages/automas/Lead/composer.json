@@ -1,0 +1,25 @@
+{
+    "name": "automas/lead",
+    "description": "Description for lead package",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Automas\\Lead\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "AutomasERP",
+            "email": "systemautomastech@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Automas\\Lead\\Providers\\LeadServiceProvider"
+            ]
+        }
+    }
+}
