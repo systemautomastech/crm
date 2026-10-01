@@ -15,25 +15,16 @@ use App\Http\Controllers\CouponController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\NotificationTemplateController;
-use App\Http\Controllers\HelpdeskCategoryController;
-use App\Http\Controllers\HelpdeskTicketController;
-use App\Http\Controllers\HelpdeskReplyController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\TransferController;
-use App\Http\Controllers\MessengerController;
-use App\Http\Controllers\PurchaseInvoiceController;
-use App\Http\Controllers\PurchaseReturnController;
-use App\Http\Controllers\SalesInvoiceController;
-use App\Http\Controllers\SalesProposalController;
-use App\Http\Controllers\SalesReturnController;
 use App\Http\Controllers\MetaController;
-use App\Http\Controllers\AIAgentChatPageController;
-use App\Http\Controllers\AIAgentChatController;
+use App\Http\Controllers\UserGroupController;
+use App\Http\Controllers\SalesProposalController;
 use App\Http\Controllers\ProposalSetupController;
 use App\Http\Controllers\ProposalDefaultPageController;
 use App\Http\Controllers\ProposalSubjectController;
-use App\Http\Controllers\UserGroupController;
+use App\Http\Controllers\SalesInvoiceController;
+use App\Http\Controllers\SalesReturnController;
 
 Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
 
@@ -61,55 +52,9 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
     Route::resource('user-groups', UserGroupController::class);
     Route::get('user-groups-list/active', [UserGroupController::class, 'listActive'])->name('user-groups.list-active');
 
-    Route::middleware(['PlanModuleCheck:ProductService'])->group(function () {
-        Route::resource('warehouses', WarehouseController::class);
-        Route::resource('transfers', TransferController::class)->except(['edit', 'update']);
+    // Warehouses
+    Route::resource('warehouses', WarehouseController::class);
 
-        // purchase invoices
-        Route::get('purchase-invoice/settings', [PurchaseInvoiceController::class, 'setup'])->name('purchase-invoice-setup.index');
-        Route::post('purchase-invoice/settings', [PurchaseInvoiceController::class, 'updateSetup'])->name('purchase-invoice-setup.update');
-        Route::get('purchase-invoices/warehouse/products', [PurchaseInvoiceController::class, 'getWarehouseProducts'])->name('purchase-invoices.warehouse.products');
-        Route::resource('purchase-invoices', PurchaseInvoiceController::class);
-        Route::post('purchase-invoices/{purchaseInvoice}/post', [PurchaseInvoiceController::class, 'post'])->name('purchase-invoices.post');
-        Route::get('purchase-invoices/{purchaseInvoice}/print', [PurchaseInvoiceController::class, 'print'])->name('purchase-invoices.print');
-
-        // sales invoices
-        Route::get('sales-invoice/settings', [SalesInvoiceController::class, 'setup'])->name('sales-invoice-setup.index');
-        Route::post('sales-invoice/settings', [SalesInvoiceController::class, 'updateSetup'])->name('sales-invoice-setup.update');
-        Route::resource('sales-invoices', SalesInvoiceController::class);
-        Route::post('sales-invoices/{salesInvoice}/post', [SalesInvoiceController::class, 'post'])->name('sales-invoices.post');
-        Route::get('sales-invoices/{salesInvoice}/print', [SalesInvoiceController::class, 'print'])->name('sales-invoices.print');
-        Route::get('sales-invoices/{salesInvoice}/download-pdf', [SalesInvoiceController::class, 'downloadPdf'])->name('sales-invoices.download-pdf');
-        Route::get('sales-invoices/warehouse/products', [SalesInvoiceController::class, 'getWarehouseProducts'])->name('sales-invoices.warehouse.products');
-        Route::get('sales-invoices/services/list', [SalesInvoiceController::class, 'getServices'])->name('sales-invoices.services');
-
-        // purchase returns
-        Route::get('purchase-returns', [PurchaseReturnController::class, 'index'])->name('purchase-returns.index');
-        Route::get('purchase-returns/create', [PurchaseReturnController::class, 'create'])->name('purchase-returns.create');
-        Route::post('purchase-returns', [PurchaseReturnController::class, 'store'])->name('purchase-returns.store');
-        Route::get('purchase-returns/{return}', [PurchaseReturnController::class, 'show'])->name('purchase-returns.show');
-        Route::delete('purchase-returns/{return}', [PurchaseReturnController::class, 'destroy'])->name('purchase-returns.destroy');
-        Route::post('purchase-returns/{return}/approve', [PurchaseReturnController::class, 'approve'])->name('purchase-returns.approve');
-        Route::post('purchase-returns/{return}/complete', [PurchaseReturnController::class, 'complete'])->name('purchase-returns.complete');
-
-        // sales returns
-        Route::get('sales-returns', [SalesReturnController::class, 'index'])->name('sales-returns.index');
-        Route::get('sales-returns/create', [SalesReturnController::class, 'create'])->name('sales-returns.create');
-        Route::post('sales-returns', [SalesReturnController::class, 'store'])->name('sales-returns.store');
-        Route::get('sales-returns/{salesReturn}', [SalesReturnController::class, 'show'])->name('sales-returns.show');
-        Route::delete('sales-returns/{salesReturn}', [SalesReturnController::class, 'destroy'])->name('sales-returns.destroy');
-        Route::post('sales-returns/{salesReturn}/approve', [SalesReturnController::class, 'approve'])->name('sales-returns.approve');
-        Route::post('sales-returns/{salesReturn}/complete', [SalesReturnController::class, 'complete'])->name('sales-returns.complete');
-    });
-
-    // Helpdesk Routes
-    Route::resource('helpdesk-categories', HelpdeskCategoryController::class);
-    Route::get('helpdesk-ticket/today', [HelpdeskTicketController::class, 'today'])->name('helpdesk-tickets.today');
-    Route::resource('helpdesk-tickets', HelpdeskTicketController::class);
-
-    // Helpdesk Replies (AJAX endpoints)
-    Route::post('helpdesk-tickets/{ticket}/replies', [HelpdeskReplyController::class, 'store'])->name('helpdesk-replies.store');
-    Route::delete('helpdesk-replies/{reply}', [HelpdeskReplyController::class, 'destroy'])->name('helpdesk-replies.destroy');
     Route::resource('plans', PlanController::class);
     Route::resource('coupons', CouponController::class);
     Route::resource('orders', OrderController::class)->only(['index', 'show']);
@@ -145,8 +90,6 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
     Route::post('settings/email/test', [SettingController::class, 'testEmail'])->name('settings.email.test');
     Route::post('settings/pusher', [SettingController::class, 'updatePusherSettings'])->name('settings.pusher.update');
     Route::post('settings/bank-transfer', [SettingController::class, 'updateBankTransferSettings'])->name('settings.bank-transfer.update');
-    Route::post('settings/ai-agent', [SettingController::class, 'updateAIAgentSettings'])->name('settings.ai-agent.update');
-    Route::get('settings/ai-agent/providers', [SettingController::class, 'getAIAgentProviders'])->name('settings.ai-agent.providers');
     Route::post('email-notification-settings-save', [SettingController::class, 'mailNotificationStore'])->name('email.notification.setting.store');
 
     // Bank Transfer Payment routes
@@ -207,32 +150,25 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
             'destroy' => 'proposal-setup.subjects.destroy',
         ]);
         Route::get('sales-proposal/subjects-list', [ProposalSubjectController::class, 'index'])->name('proposal.subjects.index');
-    });
 
-    // Messenger routes
-    Route::get('messenger', [MessengerController::class, 'index'])->name('messenger.index');
-    Route::post('messenger/send', [MessengerController::class, 'send'])->name('messenger.send');
-    Route::get('messenger/contacts', [MessengerController::class, 'getContacts'])->name('messenger.contacts');
-    Route::get('messenger/messages/{userId}', [MessengerController::class, 'getMessages'])->name('messenger.messages');
-    Route::post('messenger/toggle-favorite', [MessengerController::class, 'toggleFavorite'])->name('messenger.toggle-favorite');
-    Route::get('messenger/favorites', [MessengerController::class, 'getFavorites'])->name('messenger.favorites');
-    Route::put('messenger/messages/{messageId}/edit', [MessengerController::class, 'editMessage'])->name('messenger.edit-message');
-    Route::delete('messenger/messages/{messageId}', [MessengerController::class, 'deleteMessage'])->name('messenger.delete-message');
-    Route::post('/messenger/set-offline', [MessengerController::class, 'setOffline'])->name('messenger.set-offline');
-    Route::post('/messenger/update-presence', [MessengerController::class, 'updatePresence'])->name('messenger.update-presence');
-    Route::get('/messenger/online-users', [MessengerController::class, 'getOnlineUsers'])->name('messenger.online-users');
-    Route::post('/messenger/toggle-pin', [MessengerController::class, 'togglePin'])->name('messenger.toggle-pin');
-    Route::get('/messenger/pinned', [MessengerController::class, 'getPinned'])->name('messenger.pinned');
-    Route::get('/messenger/check-new-messages', [MessengerController::class, 'checkNewMessages'])->name('messenger.check-new-messages');
+        // sales invoices
+        Route::get('sales-invoice/settings', [SalesInvoiceController::class, 'setup'])->name('sales-invoice-setup.index');
+        Route::post('sales-invoice/settings', [SalesInvoiceController::class, 'updateSetup'])->name('sales-invoice-setup.update');
+        Route::resource('sales-invoices', SalesInvoiceController::class);
+        Route::post('sales-invoices/{salesInvoice}/post', [SalesInvoiceController::class, 'post'])->name('sales-invoices.post');
+        Route::get('sales-invoices/{salesInvoice}/print', [SalesInvoiceController::class, 'print'])->name('sales-invoices.print');
+        Route::get('sales-invoices/{salesInvoice}/download-pdf', [SalesInvoiceController::class, 'downloadPdf'])->name('sales-invoices.download-pdf');
+        Route::get('sales-invoices/warehouse/products', [SalesInvoiceController::class, 'getWarehouseProducts'])->name('sales-invoices.warehouse.products');
+        Route::get('sales-invoices/services/list', [SalesInvoiceController::class, 'getServices'])->name('sales-invoices.services');
 
-    // AI Agent routes
-    Route::prefix('ai-agent')->name('ai-agent.')->group(function () {
-        Route::get('/chat-page', [AIAgentChatPageController::class, 'index'])->name('chat.page');
-        Route::post('/chat', [AIAgentChatController::class, 'chat'])->name('chat');
-        Route::get('/sessions', [AIAgentChatPageController::class, 'getSessions'])->name('sessions.index');
-        Route::post('/sessions', [AIAgentChatPageController::class, 'createSession'])->name('sessions.store');
-        Route::delete('/sessions/{session}', [AIAgentChatPageController::class, 'destroySession'])->name('sessions.destroy');
-        Route::get('/sessions/{session}/messages', [AIAgentChatPageController::class, 'getMessages'])->name('sessions.messages');
+        // sales returns
+        Route::get('sales-returns', [SalesReturnController::class, 'index'])->name('sales-returns.index');
+        Route::get('sales-returns/create', [SalesReturnController::class, 'create'])->name('sales-returns.create');
+        Route::post('sales-returns', [SalesReturnController::class, 'store'])->name('sales-returns.store');
+        Route::get('sales-returns/{salesReturn}', [SalesReturnController::class, 'show'])->name('sales-returns.show');
+        Route::delete('sales-returns/{salesReturn}', [SalesReturnController::class, 'destroy'])->name('sales-returns.destroy');
+        Route::post('sales-returns/{salesReturn}/approve', [SalesReturnController::class, 'approve'])->name('sales-returns.approve');
+        Route::post('sales-returns/{salesReturn}/complete', [SalesReturnController::class, 'complete'])->name('sales-returns.complete');
     });
 
     // Media Library API routes
@@ -255,11 +191,15 @@ Route::get('/storage-link', function () {
 Route::get('/translations/{locale}', [TranslationController::class, 'getTranslations'])->name('languages.translations');
 Route::post('/cookie-consent-log', [SettingController::class, 'logCookieConsent'])->name('cookie.consent.log');
 
-// Public Invoice & Proposal
-Route::get('invoice/view/{token}', [SalesInvoiceController::class, 'clientInvoice'])->name('sales-invoice.client.view');
+
+
+
+
+// Public Proposal Print
 Route::get('sales-proposals/print/{token}', [SalesProposalController::class, 'publicPrint'])->name('sales-proposals.public-print');
 
-
+// Public Invoice
+Route::get('invoice/view/{token}', [SalesInvoiceController::class, 'clientInvoice'])->name('sales-invoice.client.view');
 
 //for Instagramchat & Facebookchat
 Route::any('/meta/callback', [MetaController::class, 'handleWebhook'])->name('meta.callback');
