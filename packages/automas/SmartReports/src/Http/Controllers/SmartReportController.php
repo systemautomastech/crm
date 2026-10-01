@@ -212,8 +212,8 @@ class SmartReportController extends Controller
                 [
                     'type'        => 'product_stock_report',
                     'name'        => 'Product Stock Report',
-                    'description' => 'Inventory overview with stock quantities, values and warehouse-wise breakdown',
-                    'module'      => 'Inventory',
+                    'description' => 'Product stock overview with quantities, values and warehouse-wise breakdown',
+                    'module'      => 'Product',
                     'icon'        => 'package',
                     'stats'       => $stockStats,
                 ],
