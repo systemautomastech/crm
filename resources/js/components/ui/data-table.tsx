@@ -106,8 +106,7 @@ export function DataTable<T = any>({
                 <TableHead
                   key={column.key}
                   className={cn(
-                    "font-bold bg-gray-100 dark:bg-gray-800 dark:text-gray-200",
-                    column.sortable ? 'cursor-pointer' : '',
+                    column.sortable ? 'cursor-pointer select-none hover:text-foreground transition-colors' : '',
                     column.className || ''
                   )}
                   onClick={() => handleSort(column.key, column.sortable)}
