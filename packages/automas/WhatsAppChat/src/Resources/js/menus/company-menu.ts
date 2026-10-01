@@ -9,7 +9,7 @@ export const whatsappchatCompanyMenu = (t: (key: string) => string) => [
         title: t('WhatsApp Chat'),
         icon: MessageSquare,
         permission: 'manage-whatsapp-chat',
-        order: 930,
+        order: 120,
         href: route('whatsapp-chat.index'),       
     },
 ];

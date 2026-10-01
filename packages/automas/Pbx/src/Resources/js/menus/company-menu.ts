@@ -22,7 +22,7 @@ export const pbxCompanyMenu = (t: (key: string) => string) => [
         title: t('PBX'),
         icon: PhoneCall,
         permission: 'manage pbx',
-        order: 550,
+        order: 100,
         children: [
             {
                 title: t('Extensions'),

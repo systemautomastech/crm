@@ -1,4 +1,4 @@
-import { LayoutGrid, Users, Warehouse, ArrowRightLeft, Package, Tag, Tags, Shield, Settings, Image, CreditCard, Headphones, ShoppingCart, Kanban, Calendar, MessageCircle, Replace, Receipt, Bot, FileCheck } from 'lucide-react';
+import { LayoutGrid, Users, Warehouse, ArrowRightLeft, Package, Tag, Tags, Shield, Settings, Image, CreditCard, Headphones, ShoppingCart, Kanban, Calendar, Replace, Receipt, Bot, FileCheck } from 'lucide-react';
 import { NavItem } from '@/types';
 
 export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
@@ -7,13 +7,13 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
         icon: LayoutGrid,
         permission: 'manage-dashboard',
         name: 'dashboard',
-        order: 1,
+        order: 10,
     },
     {
         title: t('User Management'),
         icon: Users,
         permission: 'manage-users',
-        order: 10,
+        order: 20,
         children: [
             {
                 title: t('Roles'),
@@ -38,45 +38,11 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
         ],
     },
     {
-        title: t('Purchase'),
-        icon: ShoppingCart,
-        permission: 'manage-purchase-invoices',
-        module: 'ProductService',
-        order: 20,
-        children: [
-            {
-                title: t('Purchase Invoice'),
-                href: route('purchase-invoices.index'),
-                permission: 'manage-purchase-invoices',
-            },
-            {
-                title: t('Purchase Returns'),
-                href: route('purchase-returns.index'),
-                permission: 'manage-purchase-return-invoices',
-            },
-            {
-                title: t('Warehouses'),
-                href: route('warehouses.index'),
-                permission: 'manage-warehouses',
-            },
-            {
-                title: t('Transfers'),
-                href: route('transfers.index'),
-                permission: 'manage-transfers',
-            },
-            {
-                title: t('System Setup'),
-                href: route('purchase-invoice-setup.index'),
-                permission: 'manage-purchase-invoice-setup',
-            },
-        ],
-    },
-    {
         title: t('Proposal'),
         icon: Replace,
         permission: 'manage-sales-proposals',
         module: 'ProductService',
-        order: 25,
+        order: 40,
         children: [
             {
                 title: t('Proposal'),
@@ -95,7 +61,7 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
         icon: Receipt,
         permission: 'manage-sales-invoices',
         module: 'ProductService',
-        order: 40,
+        order: 60,
         children: [
             {
                 title: t('Invoice'),
@@ -114,39 +80,20 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
             },
         ],
     },
+
     {
         title: t('Media Library'),
         href: route('media-library'),
         icon: Image,
         permission: 'manage-media',
-        order: 2900,
+        order: 200,
     },
-    {
-        title: t('Messenger'),
-        href: route('messenger.index'),
-        icon: MessageCircle,
-        permission: 'manage-messenger',
-        order: 2940,
-    },
-    {
-        title: t('AI Agent'),
-        href: route('ai-agent.chat.page'),
-        icon: Bot,
-        permission: 'manage-ai-agent',
-        order: 2945,
-    },
-    {
-        title: t('Helpdesk'),
-        href: route('helpdesk-tickets.index'),
-        icon: Headphones,
-        permission: 'manage-helpdesk-tickets',
-        order: 2950,
-    },
+
     {
         title: t('Plan'),
         icon: CreditCard,
         permission: 'manage-plans',
-        order: 2980,
+        order: 250,
         children: [
             {
                 title: t('Setup Subscription Plan'),
@@ -170,6 +117,7 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
         href: route('settings.index'),
         icon: Settings,
         permission: 'manage-settings',
-        order: 3000,
+        name: 'settings',
+        order: 300,
     },
 ];

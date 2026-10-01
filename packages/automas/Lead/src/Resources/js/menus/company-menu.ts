@@ -16,7 +16,7 @@ export const leadCompanyMenu = (t: (key: string) => string) => [
         title: t('CRM'),
         icon: Contact,
         permission: 'manage-leads',
-        order: 500,
+        order: 80,
         children: [
             {
                 title: t('Leads'),

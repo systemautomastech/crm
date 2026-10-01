@@ -9,7 +9,7 @@ export const facebookchatCompanyMenu = (t: (key: string) => string) => [
         title: t('Facebook Chat'),
         icon: MessageSquare,
         permission: 'manage-facebook-chat',
-        order: 535,
+        order: 110,
         href: route('facebook-chat.index'),     
     },    
 ];
