@@ -10,7 +10,7 @@ import {
     router,
 } from "@inertiajs/react";
 import axios from "axios";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 import { ThemeProvider } from "@/components/theme-provider";
 
