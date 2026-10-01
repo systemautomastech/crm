@@ -114,9 +114,9 @@ export default function EmailNotificationSettings({
                       {(notifications[module] || []).filter((notification: Notification) =>
                           auth.user?.permissions?.includes(notification.permissions)
                       ).map((notification: Notification) => (
-                          <div key={notification.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <span className="font-medium text-gray-3900">
-                              {notification.action}
+                          <div key={notification.id} className="flex items-center justify-between p-4 bg-muted/40 border rounded-lg">
+                          <span className="font-medium text-sm text-foreground">
+                              {t(notification.action)}
                           </span>
                           <Switch
                               checked={settings[notification.action] === 'on'}

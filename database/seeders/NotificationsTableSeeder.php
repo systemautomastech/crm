@@ -4,51 +4,76 @@ namespace Database\Seeders;
 
 use App\Models\Notification;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use App\Models\User;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class NotificationsTableSeeder extends Seeder
 {
     public function run(): void
     {
         $notifications = [
-            'New User',
-            'Sales Invoice',
-            'Sales Invoice Return',
-            'Purchase Invoice',
-            'Purchase Invoice Return',
-            'Helpdesk Ticket',
-            'Helpdesk Ticket Reply',
-            'Proposal Sent',
-            'Proposal Approval',
-            'Plan Purchase',
+            [
+                'action' => 'New User',
+                'module' => 'general',
+                'permissions' => 'manage-users',
+            ],
+            [
+                'action' => 'Plan Purchase',
+                'module' => 'general',
+                'permissions' => 'manage-email-plan-purchases',
+            ],
+            [
+                'action' => 'Sales Invoice',
+                'module' => 'general',
+                'permissions' => 'manage-sales-invoices',
+            ],
+            [
+                'action' => 'Sales Invoice Return',
+                'module' => 'general',
+                'permissions' => 'manage-sales-return-invoices',
+            ],
+            [
+                'action' => 'Proposal Sent',
+                'module' => 'general',
+                'permissions' => 'sent-sales-proposals',
+            ],
+            [
+                'action' => 'Proposal Approval',
+                'module' => 'general',
+                'permissions' => 'accept-sales-proposals',
+            ],
+            [
+                'action' => 'Quotation Sent',
+                'module' => 'Quotation',
+                'permissions' => 'manage-quotations',
+            ],
         ];
 
-        $permissions = [
-            'manage-users',
-              // add your permissions here
-            'manage-sales-invoices',
-            'manage-sales-return-invoices',
-            'manage-purchase-invoices',
-            'manage-purchase-return-invoices',
-            'manage-email-helpdesk-tickets',
-            'manage-email-helpdesk-replies',
-            'sent-sales-proposals',
-            'accept-sales-proposals',
-            'manage-email-plan-purchases',
-        ];
-        
-        foreach($notifications as $key=>$n){
-            $ntfy = Notification::where('action',$n)->where('type','mail')->where('module','general')->exists();
-            if(!$ntfy){
-                $new = new Notification();
-                $new->action = $n;
-                $new->status = 'on';
-                $new->permissions = $permissions[$key];
-                $new->module = 'general';
-                $new->type = 'mail';
-                $new->save();
+        $companyRole = Role::where('name', 'company')->first();
+
+        foreach ($notifications as $item) {
+            // Ensure permission exists and is granted to company role
+            $perm = Permission::firstOrCreate(
+                ['name' => $item['permissions'], 'guard_name' => 'web'],
+                ['module' => $item['module'], 'label' => ucwords(str_replace('-', ' ', $item['permissions']))]
+            );
+
+            if ($companyRole && !$companyRole->hasPermissionTo($perm)) {
+                $companyRole->givePermissionTo($perm);
             }
+
+            // Create notification entry if not exists
+            Notification::firstOrCreate(
+                [
+                    'action' => $item['action'],
+                    'type' => 'mail',
+                    'module' => $item['module'],
+                ],
+                [
+                    'status' => 'on',
+                    'permissions' => $item['permissions'],
+                ]
+            );
         }
     }
 }
