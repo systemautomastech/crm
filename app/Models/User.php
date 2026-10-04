@@ -143,21 +143,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function employee()
-    {
-        return $this->hasOne(\Automas\Hrm\Models\Employee::class, 'user_id');
-    }
-
-    public function customer()
-    {
-        return $this->hasOne(\Automas\Account\Models\Customer::class, 'user_id');
-    }
-
-    public function vendor()
-    {
-        return $this->hasOne(\Automas\Account\Models\Vendor::class, 'user_id');
-    }
-
     public function userGroups(): BelongsToMany
     {
         return $this->belongsToMany(UserGroup::class, 'user_group_users', 'user_id', 'user_group_id')
@@ -274,19 +259,6 @@ class User extends Authenticatable implements MustVerifyEmail
                 'view-messages',
                 'toggle-favorite-messages',
                 'toggle-pinned-messages',
-                'manage-sales-invoices',
-                'manage-own-sales-invoices',
-                'view-sales-invoices',
-                'print-sales-invoices',
-                'manage-sales-return-invoices',
-                'manage-own-sales-return-invoices',
-                'view-sales-return-invoices',
-                'manage-sales-proposals',
-                'manage-own-sales-proposals',
-                'view-sales-proposals',
-                'print-sales-proposals',
-                'accept-sales-proposals',
-                'reject-sales-proposals',
             ])->get();
 
             $clientRole->givePermissionTo($permissions);
@@ -324,13 +296,6 @@ class User extends Authenticatable implements MustVerifyEmail
                 'view-messages',
                 'toggle-favorite-messages',
                 'toggle-pinned-messages',
-                'manage-purchase-invoices',
-                'manage-own-purchase-invoices',
-                'view-purchase-invoices',
-                'print-purchase-invoices',
-                'manage-purchase-return-invoices',
-                'manage-own-purchase-return-invoices',
-                'view-purchase-return-invoices',
             ])->get();
 
             $vendorRole->givePermissionTo($permissions);

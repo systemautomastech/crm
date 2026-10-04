@@ -437,6 +437,54 @@ const formatCurrency = (amount: number | string, pageProps?: any): string => {
   }
 };
 
+/**
+ * Format compact currency (e.g. 16.6k, 1.2M) respecting company currency format settings
+ */
+const formatCompactCurrency = (amount: number | string, pageProps?: any): string => {
+  try {
+    const num = Number(amount) || 0;
+    if (!num || num === 0) {
+      const symbol = getCurrencySymbol(pageProps);
+      const currencySymbolSpace = getCompanySetting('currencySymbolSpace', pageProps) === '1';
+      const currencySymbolPosition = getCompanySetting('currencySymbolPosition', pageProps) || 'before';
+      const space = currencySymbolSpace ? ' ' : '';
+      return currencySymbolPosition === 'before'
+        ? `${symbol}${space}0`
+        : `0${space}${symbol}`;
+    }
+
+    const absNum = Math.abs(num);
+    let formattedVal = '';
+
+    if (absNum >= 1_000_000) {
+      const val = absNum / 1_000_000;
+      const truncated = val % 1 === 0 ? val.toFixed(0) : (Math.floor(val * 10) / 10).toString();
+      formattedVal = `${truncated}M`;
+    } else if (absNum >= 1_000) {
+      const val = absNum / 1_000;
+      const truncated = val % 1 === 0 ? val.toFixed(0) : (Math.floor(val * 10) / 10).toString();
+      formattedVal = `${truncated}k`;
+    } else {
+      return formatCurrency(num, pageProps);
+    }
+
+    if (num < 0) {
+      formattedVal = `-${formattedVal}`;
+    }
+
+    const symbol = getCurrencySymbol(pageProps);
+    const currencySymbolSpace = getCompanySetting('currencySymbolSpace', pageProps) === '1';
+    const currencySymbolPosition = getCompanySetting('currencySymbolPosition', pageProps) || 'before';
+    const space = currencySymbolSpace ? ' ' : '';
+
+    return currencySymbolPosition === 'before'
+      ? `${symbol}${space}${formattedVal}`
+      : `${formattedVal}${space}${symbol}`;
+  } catch {
+    return formatCurrency(amount, pageProps);
+  }
+};
+
 const formatAdminCurrency = (amount: number | string, pageProps?: any): string => {
   try {
     const num = Number(amount) || 0;
@@ -702,6 +750,7 @@ export {
   formatTimeFromDate,
   getImagePath,
   formatCurrency,
+  formatCompactCurrency,
   formatAdminCurrency,
   getCurrencySymbol,
   getAdminCurrencySymbol,

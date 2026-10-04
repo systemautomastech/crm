@@ -42,11 +42,6 @@ class NotificationsTableSeeder extends Seeder
                 'module' => 'general',
                 'permissions' => 'accept-sales-proposals',
             ],
-            [
-                'action' => 'Quotation Sent',
-                'module' => 'Quotation',
-                'permissions' => 'manage-quotations',
-            ],
         ];
 
         $companyRole = Role::where('name', 'company')->first();
@@ -55,7 +50,11 @@ class NotificationsTableSeeder extends Seeder
             // Ensure permission exists and is granted to company role
             $perm = Permission::firstOrCreate(
                 ['name' => $item['permissions'], 'guard_name' => 'web'],
-                ['module' => $item['module'], 'label' => ucwords(str_replace('-', ' ', $item['permissions']))]
+                [
+                    'module' => $item['module'],
+                    'label' => ucwords(str_replace('-', ' ', $item['permissions'])),
+                    'add_on' => 'general',
+                ]
             );
 
             if ($companyRole && !$companyRole->hasPermissionTo($perm)) {

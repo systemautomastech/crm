@@ -19,7 +19,7 @@ import CookieConsent from "@/components/cookie-consent";
 import { useFavicon } from "@/hooks/use-favicon";
 import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
-import { UserX, Bot } from "lucide-react";
+import { UserX } from "lucide-react";
 import { useFormFields } from '@/hooks/useFormFields';
 import { getImagePath } from '@/utils/helpers';
 
@@ -42,9 +42,6 @@ function AuthenticatedLayoutContent({
     useFavicon();
 
     const generalAlerts = useFormFields('generalAlert', {}, () => { }, {});
-
-    // Check if current page is AI Agent chat page
-    const isAIAgentPage = window.location.pathname.includes('/ai-agent/chat');
 
 
     return (
@@ -179,18 +176,6 @@ function AuthenticatedLayoutContent({
                 {generalAlerts.map((alert) => (
                     <div key={alert.id}>{alert.component}</div>
                 ))}
-
-                {/* Floating AI Agent Button */}
-                {auth.user?.permissions?.includes('manage-ai-agent') && !isAIAgentPage && (
-                    <div className="fixed bottom-8 right-8 z-50 animate-bounce" style={{ animationDuration: '2s' }}>
-                        <Button
-                            onClick={() => router.visit(route('ai-agent.chat.page'))}
-                            className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 bg-primary hover:bg-primary/90 p-0 [&_svg]:!size-7"
-                        >
-                            <Bot className="text-primary-foreground" strokeWidth={2} />
-                        </Button>
-                    </div>
-                )}
             </div>
         </>
     );

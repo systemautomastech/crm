@@ -17,29 +17,6 @@ export const getSuperAdminMenu = (t: (key: string) => string): NavItem[] => [
         order: 20,
     },
     {
-        title: t('Helpdesk'),
-        icon: Headphones,
-        permission: 'manage-helpdesk-tickets',
-        order: 2750,
-        children: [
-            {
-                title: t('Today\'s Tickets'),
-                href: route('helpdesk-tickets.today'),
-                permission: 'manage-any-helpdesk-tickets',
-            },
-            {
-                title: t('All Tickets'),
-                href: route('helpdesk-tickets.index'),
-                permission: 'manage-any-helpdesk-tickets',
-            },
-            {
-                title: t('Categories'),
-                href: route('helpdesk-categories.index'),
-                permission: 'manage-helpdesk-categories',
-            }
-        ]
-    },
-    {
         title: t('Subscription'),
         icon: CreditCard,
         permission: 'manage-plans',

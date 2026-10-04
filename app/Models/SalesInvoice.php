@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Automas\Account\Models\CustomerPaymentAllocation;
+use Automas\SalesOrder\Models\SalesOrder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -117,6 +118,15 @@ class SalesInvoice extends Model
             $creatorId = $invoice->created_by ?? creatorId();
             if (empty($invoice->invoice_number) || static::where('invoice_number', $invoice->invoice_number)->where('created_by', $creatorId)->exists()) {
                 $invoice->invoice_number = static::generateInvoiceNumber($creatorId);
+            }
+        });
+
+        static::deleting(function ($invoice) {
+            if (class_exists(SalesOrder::class)) {
+                SalesOrder::where('invoice_id', $invoice->id)->update([
+                    'is_invoiced' => false,
+                    'invoice_id' => null,
+                ]);
             }
         });
     }

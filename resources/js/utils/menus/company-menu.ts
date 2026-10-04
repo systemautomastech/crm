@@ -41,7 +41,6 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
         title: t('Proposal'),
         icon: Replace,
         permission: 'manage-sales-proposals',
-        module: 'ProductService',
         order: 40,
         children: [
             {

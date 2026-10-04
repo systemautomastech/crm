@@ -16,11 +16,16 @@ class SalesOrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'product_type',
         'quantity',
         'unit_price',
+        'discount_type',
         'discount_percentage',
+        'discount_amount',
         'tax_percentage',
+        'tax_amount',
         'final_price',
+        'total_amount',
         'description',
         'unit',
         'creator_id',
@@ -33,8 +38,11 @@ class SalesOrderItem extends Model
             'quantity'            => 'integer',
             'unit_price'          => 'decimal:2',
             'discount_percentage' => 'decimal:2',
+            'discount_amount'     => 'decimal:2',
             'tax_percentage'      => 'decimal:2',
+            'tax_amount'          => 'decimal:2',
             'final_price'         => 'decimal:2',
+            'total_amount'        => 'decimal:2',
         ];
     }
 

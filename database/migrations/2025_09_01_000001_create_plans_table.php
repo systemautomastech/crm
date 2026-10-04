@@ -28,6 +28,8 @@ return new class extends Migration
                 $table->decimal('price_per_storage_yearly', 10, 2)->default(0);
                 $table->boolean('trial')->default(false);
                 $table->integer('trial_days')->default(0);
+                $table->boolean('is_most_popular')->default(false);
+                $table->integer('sort_order')->default(0);
                 $table->foreignId('created_by')->nullable()->index();
                 $table->timestamps();
 

@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import axios from 'axios';
 import { useFormFields } from '@/hooks/useFormFields';
+import SalesOrderModal from './components/SalesOrderModal';
 
 interface SalesProposal {
     id: number;
@@ -34,8 +35,8 @@ interface SalesProposal {
     discount_amount: number;
     total_amount: number;
     status: string;
-    converted_to_quotation?: boolean;
-    quotation_id?: number;
+    converted_to_sales_order?: boolean;
+    sales_order_id?: number;
     converted_to_invoice: boolean;
     invoice_id?: number;
     notes?: string;
@@ -69,55 +70,18 @@ interface SalesProposal {
 
 interface ViewProps {
     proposal: SalesProposal;
+    customers?: Array<{ id: number; name: string; email?: string }>;
+    users?: Array<{ id: number; name: string; email?: string }>;
+    userGroups?: Array<{ id: number; name: string }>;
     auth: any;
-    quotationSubjects?: Array<{ id: number; name: string }>;
     [key: string]: any;
 }
 
 export default function View() {
     const { t } = useTranslation();
-    const { proposal, auth, quotationSubjects = [] } = usePage<ViewProps>().props;
+    const { proposal, auth, customers, users, userGroups } = usePage<ViewProps>().props;
     const [isDownloading, setIsDownloading] = useState(false);
-
-    const [convertState, setConvertState] = useState<{
-        isOpen: boolean;
-        subject: string;
-        error: string;
-    }>({
-        isOpen: false,
-        subject: '',
-        error: '',
-    });
-
-    const openConvertDialog = () => {
-        setConvertState({
-            isOpen: true,
-            subject: '',
-            error: '',
-        });
-    };
-
-    const closeConvertDialog = () => {
-        setConvertState({ isOpen: false, subject: '', error: '' });
-    };
-
-    const confirmConvert = (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (!convertState.subject || !convertState.subject.trim()) {
-            setConvertState((prev) => ({ ...prev, error: t('Subject is required to convert proposal to quotation.') }));
-            return;
-        }
-        router.post(
-            route('sales-proposals.convert-to-invoice', proposal.id),
-            { subject: convertState.subject.trim() },
-            {
-                onSuccess: () => {
-                    closeConvertDialog();
-                    router.reload();
-                },
-            }
-        );
-    };
+    const [isConvertOpen, setIsConvertOpen] = useState(false);
 
     useFlashMessages();
 
@@ -228,6 +192,25 @@ export default function View() {
                                                     {t('Edit')}
                                                 </Button>
                                             )}
+                                            {auth.user?.permissions?.includes('convert-sales-proposals') && proposal.status === 'accepted' && !proposal.converted_to_sales_order && !proposal.converted_to_invoice && (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => setIsConvertOpen(true)}
+                                                >
+                                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                                    {t('Convert to Sales Order')}
+                                                </Button>
+                                            )}
+                                            {proposal.converted_to_sales_order && proposal.sales_order_id && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => router.get(route('salesorder.orders.show', proposal.sales_order_id))}
+                                                    className="border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                                >
+                                                    {t('View Sales Order')}
+                                                </Button>
+                                            )}
                                             {auth.user?.permissions?.includes('sent-sales-proposals') && (proposal.status === 'draft' || proposal.status === 'sent') && (
                                                 <Button
                                                     variant="secondary"
@@ -248,24 +231,6 @@ export default function View() {
                                                     <Printer className="h-4 w-4 mr-2" />
                                                     {t('Print/Download')}
                                                 </Button>
-                                            )}
-                                            {auth.user?.permissions?.includes('convert-sales-proposals') && proposal.status === 'accepted' && !proposal.converted_to_quotation && !proposal.converted_to_invoice && (
-                                                <TooltipProvider>
-                                                    <Tooltip delayDuration={0}>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={openConvertDialog}
-                                                            >
-                                                                <RefreshCw className="h-4 w-4 mr-2" />
-                                                                {t('Convert to Quotation')}
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>{t('Convert this proposal to a quotation')}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
                                             )}
                                         </div>
                                         <div className="text-right">
@@ -406,50 +371,14 @@ export default function View() {
                 </Card>
             </div>
 
-            <Dialog open={convertState.isOpen} onOpenChange={closeConvertDialog}>
-                <DialogContent className="max-w-md [&>div]:p-0 [&>div>form]:p-0">
-                    <form onSubmit={confirmConvert} className="!p-0">
-                        <DialogHeader className="!px-5 !pt-4 !pb-3">
-                            <DialogTitle className="!text-base">{t('Convert Proposal to Quotation')}</DialogTitle>
-                            <DialogDescription className="!text-xs">
-                                {t('Please specify/confirm the subject before converting this proposal to a quotation.')}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogBody className="!px-5 !py-4 space-y-4">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="convert_subject_view" required>
-                                    {t('Quotation Subject')}
-                                </Label>
-
-                                <Select
-                                    value={convertState.subject || undefined}
-                                    onValueChange={(value) => setConvertState({ ...convertState, subject: value, error: '' })}
-                                >
-                                    <SelectTrigger id="convert_subject_view" className="w-full">
-                                        <SelectValue placeholder={t('Select Subject')} />
-                                    </SelectTrigger>
-                                    <SelectContent searchable>
-                                        {quotationSubjects.map((subj) => (
-                                            <SelectItem key={subj.id} value={subj.name}>
-                                                {subj.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <InputError message={convertState.error} />
-                            </div>
-                        </DialogBody>
-                        <DialogFooter className="!px-5 !py-3.5">
-                            <Button type="button" variant="outline" onClick={closeConvertDialog}>
-                                {t('Cancel')}
-                            </Button>
-                            <Button type="submit">
-                                {t('Convert')}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <SalesOrderModal
+                open={isConvertOpen}
+                onOpenChange={setIsConvertOpen}
+                proposal={proposal}
+                customers={customers}
+                users={users}
+                userGroups={userGroups}
+            />
         </AuthenticatedLayout>
     );
 }

@@ -25,13 +25,13 @@ class UserController extends Controller
 {
     public function index()
     {
-        if(Auth::user()->can('manage-users')){
+        if (Auth::user()->can('manage-users')) {
             $users = User::query()
                 ->with('roles')
-                ->where(function($q) {
-                    if(Auth::user()->can('manage-any-users')) {
+                ->where(function ($q) {
+                    if (Auth::user()->can('manage-any-users')) {
                         $q->where('created_by', creatorId());
-                    } elseif(Auth::user()->can('manage-own-users')) {
+                    } elseif (Auth::user()->can('manage-own-users')) {
                         $q->where('creator_id', Auth::id());
                     } else {
                         $q->whereRaw('1 = 0');
@@ -67,8 +67,7 @@ class UserController extends Controller
                 'plans' => $plans,
                 'activeModules' => $activeModules,
             ]);
-        }
-        else{
+        } else {
             return back()->with('error', __('Permission denied'));
         }
     }
@@ -88,7 +87,7 @@ class UserController extends Controller
                 ->where('created_by', $creatorId)
                 ->when($request->filled('company_name'), fn($q) => $q->where('company_name', 'like', '%' . $request->company_name . '%'))
                 ->when($request->filled('customer_code'), fn($q) => $q->where('customer_code', 'like', '%' . $request->customer_code . '%'))
-                ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+                ->when($request->filled('search'), fn($q) => $q->where(function ($sub) use ($request) {
                     $s = $request->search;
                     $sub->where('company_name', 'like', "%{$s}%")
                         ->orWhere('customer_code', 'like', "%{$s}%")
@@ -104,7 +103,7 @@ class UserController extends Controller
                 ->where('created_by', $creatorId)
                 ->when($request->filled('company_name'), fn($q) => $q->where('company_name', 'like', '%' . $request->company_name . '%'))
                 ->when($request->filled('vendor_code'), fn($q) => $q->where('vendor_code', 'like', '%' . $request->vendor_code . '%'))
-                ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+                ->when($request->filled('search'), fn($q) => $q->where(function ($sub) use ($request) {
                     $s = $request->search;
                     $sub->where('company_name', 'like', "%{$s}%")
                         ->orWhere('vendor_code', 'like', "%{$s}%")
@@ -142,7 +141,7 @@ class UserController extends Controller
             ->where('type', 'client')
             ->when($request->filled('name'), fn($q) => $q->where('name', 'like', '%' . $request->name . '%'))
             ->when($request->filled('email'), fn($q) => $q->where('email', 'like', '%' . $request->email . '%'))
-            ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+            ->when($request->filled('search'), fn($q) => $q->where(function ($sub) use ($request) {
                 $s = $request->search;
                 $sub->where('name', 'like', "%{$s}%")
                     ->orWhere('email', 'like', "%{$s}%");
@@ -157,7 +156,7 @@ class UserController extends Controller
             ->where('type', 'vendor')
             ->when($request->filled('name'), fn($q) => $q->where('name', 'like', '%' . $request->name . '%'))
             ->when($request->filled('email'), fn($q) => $q->where('email', 'like', '%' . $request->email . '%'))
-            ->when($request->filled('search'), fn($q) => $q->where(function($sub) use ($request) {
+            ->when($request->filled('search'), fn($q) => $q->where(function ($sub) use ($request) {
                 $s = $request->search;
                 $sub->where('name', 'like', "%{$s}%")
                     ->orWhere('email', 'like', "%{$s}%");
@@ -180,7 +179,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request)
     {
-        if(Auth::user()->can('create-users')){
+        if (Auth::user()->can('create-users')) {
             $checkUser = canCreateUser();
             if (!$checkUser['can_create']) {
                 return redirect()->route('users.index')->with('error', $checkUser['message']);
@@ -205,8 +204,7 @@ class UserController extends Controller
             $user->created_by = creatorId();
             $user->save();
 
-            if(Auth::user()->type == 'superadmin')
-            {
+            if (Auth::user()->type == 'superadmin') {
                 User::CompanySetting($user->id);
                 User::MakeRole($user->id);
                 $role = Role::findByName('company');
@@ -217,8 +215,8 @@ class UserController extends Controller
             // Dispatch event for packages to handle their fields
             CreateUser::dispatch($request, $user);
 
-             // Send welcome email
-            if(company_setting('New User') == 'on') {
+            // Send welcome email
+            if (company_setting('New User') == 'on') {
                 $emailData = [
                     'name' => $user->name,
                     'email' => $user->email,
@@ -226,7 +224,7 @@ class UserController extends Controller
                 ];
 
                 $message = EmailTemplate::sendEmailTemplate('New User', [$user->email], $emailData);
-                if($message['is_success'] == false && !empty($message['error'])) {
+                if ($message['is_success'] == false && !empty($message['error'])) {
                     return back()
                         ->with('success', __('The user has been created successfully.'))
                         ->with('error', $message['error']);
@@ -239,16 +237,15 @@ class UserController extends Controller
                 $user->sendEmailVerificationNotification();
             }
 
-            return redirect()->route('users.index')->with('success', __('The user has been created successfully.'));
-        }
-        else{
-            return redirect()->route('users.index')->with('error', __('Permission denied'));
+            return back()->with('success', __('The user has been created successfully.'));
+        } else {
+            return back()->with('error', __('Permission denied'));
         }
     }
 
     public function update(UpdateUserRequest $request, User $user)
     {
-        if(Auth::user()->can('edit-users')){
+        if (Auth::user()->can('edit-users')) {
             $validated = $request->validated();
             $validated['is_enable_login'] = $request->boolean('is_enable_login', true);
 
@@ -275,42 +272,38 @@ class UserController extends Controller
             $user->save();
 
             return back()->with('success', __('The user details are updated successfully.'));
-        }
-        else{
+        } else {
             return redirect()->route('users.index')->with('error', __('Permission denied'));
         }
     }
 
     public function changePassword(ChangePasswordRequest $request, User $user)
     {
-        if(Auth::user()->can('change-password-users') && $user->created_by == creatorId() ){
+        if (Auth::user()->can('change-password-users') && $user->created_by == creatorId()) {
             $validated = $request->validated();
             $user->password = Hash::make($validated['password']);
             $user->save();
 
-            return redirect()->route('users.index')->with('success', __('The password changed successfully.'));
-        }
-        else{
-            return redirect()->route('users.index')->with('error', __('Permission denied'));
+            return back()->with('success', __('The password changed successfully.'));
+        } else {
+            return back()->with('error', __('Permission denied'));
         }
     }
 
     public function destroy(User $user, UserDeletionService $userDeletionService)
     {
-        if(Auth::user()->can('delete-users')){
+        if (Auth::user()->can('delete-users')) {
             $userDeletionService->deleteUser($user);
 
             return back()->with('success', __('The user has been deleted.'));
-        }
-        else{
-            return redirect()->route('users.index')->with('error', __('Permission denied'));
+        } else {
+            return back()->with('error', __('Permission denied'));
         }
     }
 
     public function impersonate(User $user)
     {
-        if (Auth::user()->can('impersonate-users'))
-        {
+        if (Auth::user()->can('impersonate-users')) {
             if ($user->id === Auth::id()) {
                 return redirect()->route('users.index')->with('error', __('You cannot login as user yourself'));
             }
@@ -324,9 +317,7 @@ class UserController extends Controller
 
             // Login as the target user
             Auth::login($user);
-        }
-        else
-        {
+        } else {
             return redirect()->route('users.index')->with('error', __('Permission denied'));
         }
 
@@ -355,16 +346,16 @@ class UserController extends Controller
 
     public function adminHub(User $user)
     {
-        if(Auth::user()->can('view-admin-hub')){
-            if($user->type !== 'company') {
+        if (Auth::user()->can('view-admin-hub')) {
+            if ($user->type !== 'company') {
                 return back()->with('error', __('Invalid user type'));
             }
 
             $companyUsers = User::query()
                 ->where('created_by', $user->id)
                 ->where('id', '!=', $user->id)
-                ->when(request('name'), function($q) {
-                    $q->where(function($query) {
+                ->when(request('name'), function ($q) {
+                    $q->where(function ($query) {
                         $query->where('name', 'like', '%' . request('name') . '%');
                         $query->orWhere('email', 'like', '%' . request('name') . '%');
                         $query->orWhere('mobile_no', 'like', '%' . request('name') . '%');
@@ -394,16 +385,15 @@ class UserController extends Controller
                 'roles' => $roles,
                 'activePlanName' => $activePlan?->name ?? '-',
             ]);
-        }
-        else{
+        } else {
             return back()->with('error', __('Permission denied'));
         }
     }
 
     public function toggleStatus(User $user)
     {
-        if(Auth::user()->can('toggle-status-users')){
-            if(Auth::user()->type !== 'superadmin' && $user->created_by !== creatorId()) {
+        if (Auth::user()->can('toggle-status-users')) {
+            if (Auth::user()->type !== 'superadmin' && $user->created_by !== creatorId()) {
                 return back()->with('error', __('Permission denied'));
             }
 
@@ -412,15 +402,14 @@ class UserController extends Controller
             $user->save();
 
             return back()->with('success', __('User status updated successfully.'));
-        }
-        else{
+        } else {
             return back()->with('error', __('Permission denied'));
         }
     }
 
     public function assignPlan(Request $request, User $user)
     {
-        if(Auth::user()->can('view-upgrade-plan') && Auth::user()->type === 'superadmin'){
+        if (Auth::user()->can('view-upgrade-plan') && Auth::user()->type === 'superadmin') {
             $request->validate([
                 'plan_id' => 'nullable|exists:plans,id',
                 'duration' => 'nullable|in:Month,Year,Trial',
@@ -483,15 +472,14 @@ class UserController extends Controller
             } else {
                 return back()->with('error', $result['error'] ?? __('Failed to assign plan.'));
             }
-        }
-        else{
+        } else {
             return back()->with('error', __('Permission denied'));
         }
     }
 
     public function loginHistory()
     {
-        if(Auth::user()->can('view-login-history')){
+        if (Auth::user()->can('view-login-history')) {
             $loginHistories = LoginHistory::with('user')
                 ->when(Auth::user()->type !== 'superadmin', fn($q) => $q->where('created_by', creatorId()))
                 ->when(request('user_name'), fn($q) => $q->whereHas('user', fn($q) => $q->where('name', 'like', '%' . request('user_name') . '%')))
@@ -507,8 +495,7 @@ class UserController extends Controller
                 'loginHistories' => $loginHistories,
                 'roles' => $roles,
             ]);
-        }
-        else{
+        } else {
             return back()->with('error', __('Permission denied'));
         }
     }

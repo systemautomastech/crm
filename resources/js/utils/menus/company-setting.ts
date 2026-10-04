@@ -1,4 +1,4 @@
-import { Palette, Building,SettingsIcon, Mail, DollarSign, CreditCard, Bot } from 'lucide-react';
+import { Palette, Building,SettingsIcon, Mail, DollarSign, CreditCard } from 'lucide-react';
 
 export interface SettingMenuItem {
   order: number;
@@ -33,14 +33,6 @@ export const getCompanySettings = (t: (key: string) => string): SettingMenuItem[
     icon: Building,
     permission: 'manage-company-settings',
     component: 'company-settings'
-  },
-  {
-    order: 35,
-    title: t('AI Agent Settings'),
-    href: '#ai-agent-settings',
-    icon: Bot,
-    permission: 'manage-ai-agent-settings',
-    component: 'ai-agent-settings'
   },
   {
     order: 40,

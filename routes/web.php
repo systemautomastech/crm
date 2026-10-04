@@ -36,7 +36,7 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Resource management routes
-    Route::get('users/clients-vendors', [UserController::class, 'clientsVendors'])->name('users.clients-vendors');
+    Route::get('clients-vendors', [UserController::class, 'clientsVendors'])->name('users.clients-vendors');
     Route::resource('users', UserController::class);
     Route::patch('users/{user}/change-password', [UserController::class, 'changePassword'])->name('users.change-password');
     Route::post('users/{user}/impersonate', [UserController::class, 'impersonate'])->name('users.impersonate');
@@ -130,7 +130,9 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
         Route::post('sales-proposals/{salesProposal}/sent', [SalesProposalController::class, 'sent'])->name('sales-proposals.sent');
         Route::post('sales-proposals/{salesProposal}/accept', [SalesProposalController::class, 'accept'])->name('sales-proposals.accept');
         Route::post('sales-proposals/{salesProposal}/reject', [SalesProposalController::class, 'reject'])->name('sales-proposals.reject');
+        Route::post('sales-proposals/{salesProposal}/convert-to-sales-order', [SalesProposalController::class, 'convertToSalesOrder'])->name('sales-proposals.convert-to-sales-order');
         Route::post('sales-proposals/{salesProposal}/convert-to-invoice', [SalesProposalController::class, 'convertToInvoice'])->name('sales-proposals.convert-to-invoice');
+        Route::get('sales-proposals/{salesProposal}/convert-details', [SalesProposalController::class, 'convertDetails'])->name('sales-proposals.convert-details');
         Route::get('sales-proposals/warehouse/products', [SalesProposalController::class, 'getWarehouseProducts'])->name('sales-proposals.warehouse.products');
         Route::get('sales-proposals/services/list', [SalesProposalController::class, 'getServices'])->name('sales-proposals.services');
 

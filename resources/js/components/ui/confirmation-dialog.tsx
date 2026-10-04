@@ -1,5 +1,7 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
 
 interface ConfirmationDialogProps {
     open: boolean;
@@ -10,6 +12,7 @@ interface ConfirmationDialogProps {
     cancelText?: string;
     onConfirm: () => void;
     variant?: 'default' | 'destructive';
+    isLoading?: boolean;
 }
 
 export function ConfirmationDialog({
@@ -20,24 +23,35 @@ export function ConfirmationDialog({
     confirmText,
     cancelText,
     onConfirm,
-    variant = 'default'
+    variant = 'default',
+    isLoading = false,
 }: ConfirmationDialogProps) {
     const { t } = useTranslation();
+
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialog open={open} onOpenChange={(val) => {
+            if (isLoading) return;
+            onOpenChange(val);
+        }}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>{title || t('Confirm Action')}</AlertDialogTitle>
                     <AlertDialogDescription>{message || t('Are you sure you want to proceed?')}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>{cancelText || t('Cancel')}</AlertDialogCancel>
-                    <AlertDialogAction
-                        onClick={onConfirm}
-                        className={variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+                    <AlertDialogCancel disabled={isLoading}>{cancelText || t('Cancel')}</AlertDialogCancel>
+                    <Button
+                        type="button"
+                        onClick={() => {
+                            if (isLoading) return;
+                            onConfirm();
+                        }}
+                        disabled={isLoading}
+                        variant={variant === 'destructive' ? 'destructive' : 'default'}
                     >
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {confirmText || t('Confirm')}
-                    </AlertDialogAction>
+                    </Button>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

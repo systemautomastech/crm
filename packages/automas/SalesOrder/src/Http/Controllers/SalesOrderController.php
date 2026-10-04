@@ -178,10 +178,12 @@ class SalesOrderController extends Controller
                 $assignedGroupId = null;
             }
 
+            $status = $validated['status'] ?? SalesOrder::STATUS_DRAFT;
             $salesOrder = SalesOrder::create([
                 'name' => $validated['name'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
-                'status' => $validated['status'] ?? SalesOrder::STATUS_DRAFT,
+                'status' => $status,
+                'confirmed_at' => $status === SalesOrder::STATUS_CONFIRMED ? now() : null,
                 'delivery_status' => SalesOrder::DELIVERY_STATUS_PENDING,
                 'assigned_group_id' => $assignedGroupId,
                 'assignment_status' => $assignmentStatus,
@@ -459,9 +461,19 @@ class SalesOrderController extends Controller
                 'shipping_postal_code'   => $validated['shipping_postal_code'] ?? null,
             ];
 
+            $status = $validated['status'] ?? $salesOrder->status;
+            $confirmedAt = $salesOrder->confirmed_at;
+            if ($status === SalesOrder::STATUS_CONFIRMED && !$confirmedAt) {
+                $confirmedAt = now();
+            } elseif ($status === SalesOrder::STATUS_DRAFT) {
+                $confirmedAt = null;
+            }
+
             $salesOrder->update([
                 'name' => $validated['name'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
+                'status' => $status,
+                'confirmed_at' => $confirmedAt,
                 'customer_id' => $customerId,
                 'warehouse_id' => $validated['warehouse_id'] ?? null,
                 'assigned_group_id' => $assignedGroupId,
@@ -998,6 +1010,15 @@ class SalesOrderController extends Controller
                     ? $salesOrder->expected_delivery_date->toDateString()
                     : now()->addDays(30)->toDateString();
                 $invoice->customer_id = $salesOrder->customer_id;
+                $invoice->customer_name = $customer->name ?? null;
+                $invoice->customer_email = $customer->email ?? null;
+                $invoice->customer_phone = $customer->phone ?? null;
+                $billingAddress = $salesOrder->billing_address;
+                if (is_array($billingAddress)) {
+                    $invoice->customer_address = $billingAddress['billing_address'] ?? json_encode($billingAddress);
+                } else {
+                    $invoice->customer_address = $billingAddress ?? (is_array($customer->address ?? null) ? json_encode($customer->address) : ($customer->address ?? null));
+                }
                 $invoice->warehouse_id = $salesOrder->warehouse_id ?? 1;
                 $invoice->type = 'product';
                 $invoice->notes = $salesOrder->notes;
@@ -1008,7 +1029,7 @@ class SalesOrderController extends Controller
                 $invoice->paid_amount = 0;
                 $invoice->balance_amount = $salesOrder->total_amount ?? 0;
                 $invoice->status = 'draft';
-                $invoice->creator_id = Auth::id();
+                $invoice->creator_id = Auth::id() ?: ($salesOrder->creator_id ?: creatorId());
                 $invoice->created_by = creatorId();
                 $invoice->save();
 
@@ -1017,11 +1038,17 @@ class SalesOrderController extends Controller
                     $invoiceItem->invoice_id = $invoice->id;
                     $invoiceItem->product_id = $item->product_id;
                     $invoiceItem->description = $item->description;
-                    $invoiceItem->product_type = 'product';
+                    $invoiceItem->product_type = $item->product_type ?? ($item->product?->type ?? 'product');
                     $invoiceItem->quantity = $item->quantity;
                     $invoiceItem->unit_price = $item->unit_price;
+                    $invoiceItem->discount_type = $item->discount_type ?? 'percentage';
                     $invoiceItem->discount_percentage = $item->discount_percentage ?? 0;
+                    $invoiceItem->discount_amount = $item->discount_amount ?? 0;
                     $invoiceItem->tax_percentage = $item->tax_percentage ?? 0;
+                    $invoiceItem->tax_amount = $item->tax_amount ?? 0;
+                    $invoiceItem->total_amount = $item->total_amount ?? ($item->final_price ?? 0);
+                    $invoiceItem->creator_id = $invoice->creator_id;
+                    $invoiceItem->created_by = $invoice->created_by;
                     $invoiceItem->save();
 
                     if (!empty($item->taxes)) {

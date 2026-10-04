@@ -10,24 +10,14 @@ import { Dialog } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/search-input";
-import { PerPageSelector } from "@/components/ui/per-page-selector";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import NoRecordsFound from '@/components/no-records-found';
-import { Plus, Edit as EditIcon, Trash2, Eye, Building2, User as UserIcon, Users, Store } from "lucide-react";
+import { Plus, Edit as EditIcon, Trash2, Eye, Building2, User as UserIcon, Store } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-
-import CreateCustomer from '../../../../packages/automas/Account/src/Resources/js/Pages/Customers/Create';
-import EditCustomer from '../../../../packages/automas/Account/src/Resources/js/Pages/Customers/Edit';
-import ViewCustomer from '../../../../packages/automas/Account/src/Resources/js/Pages/Customers/View';
-
-import CreateVendor from '../../../../packages/automas/Account/src/Resources/js/Pages/Vendors/Create';
-import EditVendor from '../../../../packages/automas/Account/src/Resources/js/Pages/Vendors/Edit';
-import ViewVendor from '../../../../packages/automas/Account/src/Resources/js/Pages/Vendors/View';
-
-import CreateUser from './create';
-import EditUser from './edit';
+import ClientVendorModal from './components/ClientVendorModal';
+import ViewClientVendorModal from './components/ViewClientVendorModal';
 
 interface ClientsVendorsProps {
     isAccountActive: boolean;
@@ -78,10 +68,10 @@ export default function ClientsVendors() {
         data: any;
     }>({ isOpen: false, mode: '', data: null });
 
-    // User modal states (Account Inactive)
+    // User modal states (Account Inactive / Universal)
     const [userModal, setUserModal] = useState<{
         isOpen: boolean;
-        mode: 'create' | 'edit' | '';
+        mode: 'create' | 'edit' | 'view' | '';
         userType: 'client' | 'vendor';
         data: any;
     }>({ isOpen: false, mode: '', userType: 'client', data: null });
@@ -167,7 +157,7 @@ export default function ClientsVendors() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 w-8 p-0"
-                                    onClick={() => setCustomerModal({ isOpen: true, mode: 'view', data: row })}
+                                    onClick={() => setUserModal({ isOpen: true, mode: 'view', userType: 'client', data: row })}
                                 >
                                     <Eye className="h-4 w-4 text-slate-500" />
                                 </Button>
@@ -181,7 +171,7 @@ export default function ClientsVendors() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 w-8 p-0"
-                                    onClick={() => setCustomerModal({ isOpen: true, mode: 'edit', data: row })}
+                                    onClick={() => setUserModal({ isOpen: true, mode: 'edit', userType: 'client', data: row })}
                                 >
                                     <EditIcon className="h-4 w-4 text-blue-600" />
                                 </Button>
@@ -254,7 +244,7 @@ export default function ClientsVendors() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 w-8 p-0"
-                                    onClick={() => setVendorModal({ isOpen: true, mode: 'view', data: row })}
+                                    onClick={() => setUserModal({ isOpen: true, mode: 'view', userType: 'vendor', data: row })}
                                 >
                                     <Eye className="h-4 w-4 text-slate-500" />
                                 </Button>
@@ -268,7 +258,7 @@ export default function ClientsVendors() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 w-8 p-0"
-                                    onClick={() => setVendorModal({ isOpen: true, mode: 'edit', data: row })}
+                                    onClick={() => setUserModal({ isOpen: true, mode: 'edit', userType: 'vendor', data: row })}
                                 >
                                     <EditIcon className="h-4 w-4 text-blue-600" />
                                 </Button>
@@ -347,6 +337,20 @@ export default function ClientsVendors() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 w-8 p-0"
+                                    onClick={() => setUserModal({ isOpen: true, mode: 'view', userType: row.type === 'vendor' ? 'vendor' : 'client', data: row })}
+                                >
+                                    <Eye className="h-4 w-4 text-slate-500" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>{t('View')}</p></TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
                                     onClick={() => setUserModal({ isOpen: true, mode: 'edit', userType: row.type === 'vendor' ? 'vendor' : 'client', data: row })}
                                 >
                                     <EditIcon className="h-4 w-4 text-blue-600" />
@@ -383,30 +387,16 @@ export default function ClientsVendors() {
             pageTitle={t('Clients & Vendors')}
             pageActions={
                 <div className="flex items-center gap-2">
-                    {isAccountActive ? (
-                        activeTab === 'clients' ? (
-                            <Button size="sm" onClick={() => setCustomerModal({ isOpen: true, mode: 'create', data: null })}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                {t('Create Customer')}
-                            </Button>
-                        ) : (
-                            <Button size="sm" onClick={() => setVendorModal({ isOpen: true, mode: 'create', data: null })}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                {t('Create Vendor')}
-                            </Button>
-                        )
+                    {activeTab === 'clients' ? (
+                        <Button size="sm" onClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'client', data: null })}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('Create Client')}
+                        </Button>
                     ) : (
-                        activeTab === 'clients' ? (
-                            <Button size="sm" onClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'client', data: null })}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                {t('Create Client User')}
-                            </Button>
-                        ) : (
-                            <Button size="sm" onClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'vendor', data: null })}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                {t('Create Vendor User')}
-                            </Button>
-                        )
+                        <Button size="sm" onClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'vendor', data: null })}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('Create Vendor')}
+                        </Button>
                     )}
                 </div>
             }
@@ -415,42 +405,43 @@ export default function ClientsVendors() {
 
             <div className="space-y-4">
                 <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'clients' | 'vendors')}>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <TabsList>
-                            <TabsTrigger value="clients" className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4" />
-                                <span>{t('Clients / Customers')}</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="vendors" className="flex items-center gap-2">
-                                <Store className="h-4 w-4" />
-                                <span>{t('Vendors')}</span>
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <div className="w-full sm:w-72">
-                            <SearchInput
-                                value={search}
-                                onChange={(val) => handleSearch(val)}
-                                onSearch={() => handleSearch(search)}
-                                placeholder={t('Search...')}
-                            />
-                        </div>
-                    </div>
+                    <TabsList>
+                        <TabsTrigger value="clients" className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            <span>{t('Clients / Customers')}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="vendors" className="flex items-center gap-2">
+                            <Store className="h-4 w-4" />
+                            <span>{t('Vendors')}</span>
+                        </TabsTrigger>
+                    </TabsList>
 
                     {/* ── CLIENTS / CUSTOMERS TAB CONTENT ───────────────────────────── */}
                     <TabsContent value="clients" className="pt-4 space-y-4">
-                        <Card>
+                        <Card className="shadow-sm">
+                            <CardContent className="p-6 border-b bg-gray-50/50">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex-1 max-w-md">
+                                        <SearchInput
+                                            value={search}
+                                            onChange={(val) => handleSearch(val)}
+                                            onSearch={() => handleSearch(search)}
+                                            placeholder={t('Search clients...')}
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
                             <CardContent className="p-0">
                                 {isAccountActive ? (
                                     <DataTable
                                         data={customers?.data || []}
                                         columns={customerColumns}
                                         emptyState={
-                                            <NoRecordsFound
+                                             <NoRecordsFound
                                                 icon={Building2}
                                                 title={t('No customers found')}
                                                 description={t('Get started by adding your first customer.')}
-                                                onCreateClick={() => setCustomerModal({ isOpen: true, mode: 'create', data: null })}
+                                                onCreateClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'client', data: null })}
                                                 createButtonText={t('Create Customer')}
                                             />
                                         }
@@ -462,10 +453,10 @@ export default function ClientsVendors() {
                                         emptyState={
                                             <NoRecordsFound
                                                 icon={UserIcon}
-                                                title={t('No client users found')}
-                                                description={t('Get started by creating a client user.')}
+                                                title={t('No clients found')}
+                                                description={t('Get started by creating a client.')}
                                                 onCreateClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'client', data: null })}
-                                                createButtonText={t('Create Client User')}
+                                                createButtonText={t('Create Client')}
                                             />
                                         }
                                     />
@@ -482,7 +473,19 @@ export default function ClientsVendors() {
 
                     {/* ── VENDORS TAB CONTENT ─────────────────────────────────────── */}
                     <TabsContent value="vendors" className="pt-4 space-y-4">
-                        <Card>
+                        <Card className="shadow-sm">
+                            <CardContent className="p-6 border-b bg-gray-50/50">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex-1 max-w-md">
+                                        <SearchInput
+                                            value={search}
+                                            onChange={(val) => handleSearch(val)}
+                                            onSearch={() => handleSearch(search)}
+                                            placeholder={t('Search vendors...')}
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
                             <CardContent className="p-0">
                                 {isAccountActive ? (
                                     <DataTable
@@ -493,7 +496,7 @@ export default function ClientsVendors() {
                                                 icon={Store}
                                                 title={t('No vendors found')}
                                                 description={t('Get started by adding your first vendor.')}
-                                                onCreateClick={() => setVendorModal({ isOpen: true, mode: 'create', data: null })}
+                                                onCreateClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'vendor', data: null })}
                                                 createButtonText={t('Create Vendor')}
                                             />
                                         }
@@ -505,10 +508,10 @@ export default function ClientsVendors() {
                                         emptyState={
                                             <NoRecordsFound
                                                 icon={UserIcon}
-                                                title={t('No vendor users found')}
-                                                description={t('Get started by creating a vendor user.')}
+                                                title={t('No vendors found')}
+                                                description={t('Get started by creating a vendor.')}
                                                 onCreateClick={() => setUserModal({ isOpen: true, mode: 'create', userType: 'vendor', data: null })}
-                                                createButtonText={t('Create Vendor User')}
+                                                createButtonText={t('Create Vendor')}
                                             />
                                         }
                                     />
@@ -516,7 +519,7 @@ export default function ClientsVendors() {
                             </CardContent>
                             <CardContent className="border-t bg-muted/20 px-4 py-2">
                                 <Pagination
-                                    data={isAccountActive ? vendors : vendors}
+                                    data={vendors}
                                     routeName="users.clients-vendors"
                                 />
                             </CardContent>
@@ -525,109 +528,34 @@ export default function ClientsVendors() {
                 </Tabs>
             </div>
 
-            {/* ── ACCOUNT MODULE CUSTOMER MODALS ───────────────────────────── */}
-            {isAccountActive && (
-                <>
-                    <Dialog
-                        open={customerModal.isOpen && customerModal.mode === 'create'}
-                        onOpenChange={(open) => !open && setCustomerModal({ isOpen: false, mode: '', data: null })}
-                    >
-                        {customerModal.isOpen && customerModal.mode === 'create' && (
-                            <CreateCustomer
-                                users={clientUsers}
-                                auth={auth}
-                                onSuccess={() => setCustomerModal({ isOpen: false, mode: '', data: null })}
-                            />
-                        )}
-                    </Dialog>
+            {/* ── CREATE / EDIT MODAL ──────────────────────── */}
+            <Dialog
+                open={userModal.isOpen && (userModal.mode === 'create' || userModal.mode === 'edit')}
+                onOpenChange={(open) => !open && setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
+            >
+                {userModal.isOpen && (userModal.mode === 'create' || userModal.mode === 'edit') && (
+                    <ClientVendorModal
+                        type={userModal.userType}
+                        mode={userModal.mode}
+                        data={userModal.data}
+                        roles={userModal.userType === 'vendor' ? vendorRolesMap : clientRolesMap}
+                        onSuccess={() => setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
+                    />
+                )}
+            </Dialog>
 
-                    <Dialog
-                        open={customerModal.isOpen && customerModal.mode === 'edit'}
-                        onOpenChange={(open) => !open && setCustomerModal({ isOpen: false, mode: '', data: null })}
-                    >
-                        {customerModal.isOpen && customerModal.mode === 'edit' && customerModal.data && (
-                            <EditCustomer
-                                customer={customerModal.data}
-                                onSuccess={() => setCustomerModal({ isOpen: false, mode: '', data: null })}
-                            />
-                        )}
-                    </Dialog>
-
-                    <Dialog
-                        open={customerModal.isOpen && customerModal.mode === 'view'}
-                        onOpenChange={(open) => !open && setCustomerModal({ isOpen: false, mode: '', data: null })}
-                    >
-                        {customerModal.isOpen && customerModal.mode === 'view' && customerModal.data && (
-                            <ViewCustomer customer={customerModal.data} />
-                        )}
-                    </Dialog>
-
-                    {/* VENDOR MODALS */}
-                    <Dialog
-                        open={vendorModal.isOpen && vendorModal.mode === 'create'}
-                        onOpenChange={(open) => !open && setVendorModal({ isOpen: false, mode: '', data: null })}
-                    >
-                        {vendorModal.isOpen && vendorModal.mode === 'create' && (
-                            <CreateVendor
-                                users={vendorUsers}
-                                auth={auth}
-                                onSuccess={() => setVendorModal({ isOpen: false, mode: '', data: null })}
-                            />
-                        )}
-                    </Dialog>
-
-                    <Dialog
-                        open={vendorModal.isOpen && vendorModal.mode === 'edit'}
-                        onOpenChange={(open) => !open && setVendorModal({ isOpen: false, mode: '', data: null })}
-                    >
-                        {vendorModal.isOpen && vendorModal.mode === 'edit' && vendorModal.data && (
-                            <EditVendor
-                                vendor={vendorModal.data}
-                                onSuccess={() => setVendorModal({ isOpen: false, mode: '', data: null })}
-                            />
-                        )}
-                    </Dialog>
-
-                    <Dialog
-                        open={vendorModal.isOpen && vendorModal.mode === 'view'}
-                        onOpenChange={(open) => !open && setVendorModal({ isOpen: false, mode: '', data: null })}
-                    >
-                        {vendorModal.isOpen && vendorModal.mode === 'view' && vendorModal.data && (
-                            <ViewVendor vendor={vendorModal.data} />
-                        )}
-                    </Dialog>
-                </>
-            )}
-
-            {/* ── BASIC USER MODALS (ACCOUNT INACTIVE) ──────────────────────── */}
-            {!isAccountActive && (
-                <>
-                    <Dialog
-                        open={userModal.isOpen && userModal.mode === 'create'}
-                        onOpenChange={(open) => !open && setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
-                    >
-                        {userModal.isOpen && userModal.mode === 'create' && (
-                            <CreateUser
-                                roles={userModal.userType === 'vendor' ? vendorRolesMap : clientRolesMap}
-                                onSuccess={() => setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
-                            />
-                        )}
-                    </Dialog>
-
-                    <Dialog
-                        open={userModal.isOpen && userModal.mode === 'edit'}
-                        onOpenChange={(open) => !open && setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
-                    >
-                        {userModal.isOpen && userModal.mode === 'edit' && userModal.data && (
-                            <EditUser
-                                user={userModal.data}
-                                roles={userModal.userType === 'vendor' ? vendorRolesMap : clientRolesMap}
-                                onSuccess={() => setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
-                            />
-                        )}
-                    </Dialog>
-                </>
-            )}
+            {/* ── VIEW MODAL ──────────────────────── */}
+            <Dialog
+                open={userModal.isOpen && userModal.mode === 'view'}
+                onOpenChange={(open) => !open && setUserModal({ isOpen: false, mode: '', userType: 'client', data: null })}
+            >
+                {userModal.isOpen && userModal.mode === 'view' && (
+                    <ViewClientVendorModal
+                        type={userModal.userType}
+                        data={userModal.data}
+                    />
+                )}
+            </Dialog>
 
             {/* CONFIRMATION DIALOGS */}
             <ConfirmationDialog

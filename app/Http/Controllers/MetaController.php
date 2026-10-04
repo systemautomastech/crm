@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Events\CreateMetaWebhook;
-use App\Events\CreateWarehouse;
 use Illuminate\Http\Request;
 
 class MetaController extends Controller

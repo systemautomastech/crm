@@ -206,9 +206,10 @@ export default function Edit() {
 
         // 2. Async fetch for comprehensive customer profile
         try {
-            const response = await fetch(route('salesorder.orders.customer', { id: customerId }));
+            const response = await fetch(route('salesorder.orders.customer-details', customerId));
             if (response.ok) {
-                const fetchedCustomer = await response.json();
+                const fetchedData = await response.json();
+                const fetchedCustomer = fetchedData.customer || fetchedData;
                 const b = fetchedCustomer.billing_address || localCust?.billing_address || {};
                 const s = fetchedCustomer.shipping_address || localCust?.shipping_address || {};
 
@@ -232,8 +233,6 @@ export default function Edit() {
         }
     };
 
-
-
     const handleCopyBillingToShipping = (checked: boolean) => {
         setCopyBillingToShipping(checked);
         if (checked) {
@@ -250,7 +249,11 @@ export default function Edit() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(route('salesorder.orders.update', { order: order.id }));
+        put(route('salesorder.orders.update', order.id), {
+            onError: (err) => {
+                console.error('Validation errors updating sales order:', err);
+            }
+        });
     };
 
     const totals = useTaxCalculator(data.items);
@@ -609,6 +612,7 @@ export default function Edit() {
                                                     rows={2}
                                                     placeholder={t('Billing address...')}
                                                 />
+                                                <InputError message={errors.billing_address} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
@@ -621,6 +625,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('billing_city', e.target.value)}
                                                         placeholder={t('City')}
                                                     />
+                                                    <InputError message={errors.billing_city} />
                                                 </div>
                                                 <div>
                                                     <Label htmlFor="billing_state">
@@ -632,6 +637,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('billing_state', e.target.value)}
                                                         placeholder={t('State')}
                                                     />
+                                                    <InputError message={errors.billing_state} />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
@@ -645,6 +651,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('billing_country', e.target.value)}
                                                         placeholder={t('Country')}
                                                     />
+                                                    <InputError message={errors.billing_country} />
                                                 </div>
                                                 <div>
                                                     <Label htmlFor="billing_postal_code">
@@ -656,6 +663,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('billing_postal_code', e.target.value)}
                                                         placeholder={t('Postal Code')}
                                                     />
+                                                    <InputError message={errors.billing_postal_code} />
                                                 </div>
                                             </div>
                                         </div>
@@ -687,6 +695,7 @@ export default function Edit() {
                                                     rows={2}
                                                     placeholder={t('Shipping address...')}
                                                 />
+                                                <InputError message={errors.shipping_address} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
@@ -699,6 +708,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('shipping_city', e.target.value)}
                                                         placeholder={t('City')}
                                                     />
+                                                    <InputError message={errors.shipping_city} />
                                                 </div>
                                                 <div>
                                                     <Label htmlFor="shipping_state">
@@ -710,6 +720,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('shipping_state', e.target.value)}
                                                         placeholder={t('State')}
                                                     />
+                                                    <InputError message={errors.shipping_state} />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
@@ -723,6 +734,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('shipping_country', e.target.value)}
                                                         placeholder={t('Country')}
                                                     />
+                                                    <InputError message={errors.shipping_country} />
                                                 </div>
                                                 <div>
                                                     <Label htmlFor="shipping_postal_code">
@@ -734,6 +746,7 @@ export default function Edit() {
                                                         onChange={(e) => setData('shipping_postal_code', e.target.value)}
                                                         placeholder={t('Postal Code')}
                                                     />
+                                                    <InputError message={errors.shipping_postal_code} />
                                                 </div>
                                             </div>
                                         </div>

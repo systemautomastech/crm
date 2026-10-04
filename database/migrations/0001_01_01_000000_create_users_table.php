@@ -25,14 +25,16 @@ return new class extends Migration
                 $table->string('type')->default('company');
                 $table->string('avatar')->default('avatar.png');
                 $table->string('lang', 191)->default('en');
+                $table->string('layout_direction', 10)->default('ltr');
                 $table->integer('active_plan')->nullable();
                 $table->date('plan_expire_date')->nullable();
-                $table->string('trial_expire_date')->nullable();
-                $table->string('is_trial_done')->default(0);
+                $table->integer('is_trial_done')->default(0);
                 $table->integer('total_user')->default(0);
                 $table->float('storage_limit', 15, 2)->default(0.00);
                 $table->integer('is_disable')->default(0);
                 $table->integer('is_enable_login')->default(1);
+                $table->boolean('active_status')->default(0);
+                $table->timestamp('last_seen_at')->nullable();
                 $table->foreignId('creator_id')->nullable()->index();
                 $table->foreignId('created_by')->nullable()->index();
 

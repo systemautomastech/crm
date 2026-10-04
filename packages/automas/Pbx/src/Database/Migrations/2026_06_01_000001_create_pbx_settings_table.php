@@ -17,6 +17,8 @@ return new class extends Migration
                 $table->unsignedInteger('ami_port')->default(5038);
                 $table->string('ami_username')->nullable();
                 $table->text('ami_password')->nullable();
+                $table->string('call_report_api_url')->nullable();
+                $table->text('call_report_api_key')->nullable();
                 $table->string('sip_domain')->nullable();
                 $table->string('websocket_url')->nullable();
                 $table->string('stun_server')->nullable();
@@ -25,6 +27,7 @@ return new class extends Migration
                 $table->unsignedInteger('extension_end')->default(199);
                 $table->unsignedInteger('max_extensions')->default(50);
                 $table->boolean('is_enabled')->default(false)->index();
+                $table->string('ringtone')->nullable()->default('ringtone.mp3');
                 $table->foreignId('creator_id')->nullable()->index();
                 $table->foreignId('created_by')->nullable()->index();
                 $table->timestamps();

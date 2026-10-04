@@ -13,6 +13,7 @@ use Automas\Lead\Models\LeadCall;
 use Automas\Lead\Models\LeadStage;
 use Automas\Lead\Models\LeadTask;
 use Automas\Lead\Models\Pipeline;
+use Automas\Lead\Models\Source;
 use Automas\Lead\Models\UserDeal;
 use Automas\Lead\Models\UserLead;
 use Illuminate\Http\Request;
@@ -58,28 +59,36 @@ class DashboardController extends Controller
 
         return [$start, $end];
     }
-
     public function index(Request $request)
     {
-        if (Auth::user()->can('manage-crm-dashboard')) {
-            $user = Auth::user();
+        if (!Auth::user()->can('manage-crm-dashboard')) {
+            return back()->with('error', __('Permission denied'));
+        }
 
-            if ($user->type == 'client') {
-                return $this->clientDashboard($request);
-            }
+        $user = Auth::user();
 
-            if ($user->type != 'company') {
-                return $this->userDashboard($request);
-            }
+        if ($user->type == 'client') {
+            return $this->clientDashboard($request);
+        }
 
-            [$start, $end] = $this->getDateRange($request);
+        if ($user->type != 'company' || $request->get('view') === 'user') {
+            return $this->userDashboard($request);
+        }
 
-            $deal = Deal::where('created_by', creatorId());
-            $lead = Lead::where('created_by', creatorId());
+        return $this->companyDashboard($request);
+    }
 
-            // 1. Top Cards Data (Real database values)
-            $totalLeads = (clone $lead)->count();
-            $monthLeads = (clone $lead)->whereBetween('created_at', [$start, $end])->count();
+    private function companyDashboard(Request $request)
+    {
+        $companyCreatorId = creatorId();
+        [$start, $end] = $this->getDateRange($request);
+
+        $deal = Deal::where('created_by', $companyCreatorId);
+        $lead = Lead::where('created_by', $companyCreatorId);
+
+            // 1. Top Cards Data (Filtered by selected date range, defaults to This Month)
+            $totalLeads = (clone $lead)->whereBetween('created_at', [$start, $end])->count();
+            $monthLeads = $totalLeads;
             $daysCount = max(1, $start->diffInDays(now()->lt($end) ? now() : $end) + 1);
             $avgDailyLeads = round($monthLeads / $daysCount, 1);
 
@@ -106,39 +115,62 @@ class DashboardController extends Controller
                 ];
             }
 
-            $activeDeals = (clone $deal)->where('is_active', true)->whereNotIn('status', ['Won', 'Loss'])->count();
-            $openDealValue = (clone $deal)->where('is_active', true)->whereNotIn('status', ['Won', 'Loss'])->sum('price');
-
-            $wonDealAmount = (clone $deal)->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->sum('price');
-            $wonDealsThisMonth = (clone $deal)->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->count();
-            if ($wonDealAmount == 0 && !$request->has('period')) {
-                $wonDealAmount = (clone $deal)->where('status', 'Won')->sum('price');
-                $wonDealsThisMonth = (clone $deal)->where('status', 'Won')->count();
+            // Open / Active Deals (deals that are currently open in the pipeline, not Won or Loss)
+            $activeDealsQuery = Deal::where('created_by', $companyCreatorId)->whereNotIn('status', ['Won', 'Loss']);
+            if ($request->has('period')) {
+                $activeDealsQuery->whereBetween('created_at', [$start, $end]);
             }
+            $activeDeals = (clone $activeDealsQuery)->count();
+            $openDealValue = (float) (clone $activeDealsQuery)->sum('price');
+
+            // Won Deals & Amount filtered by date range (defaults to This Month)
+            $wonDealAmount = (float) (clone $deal)->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->sum('price');
+            $wonDealsThisMonth = (clone $deal)->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->count();
 
             // Calls today / period
-            $dealCallsToday = DealCall::whereHas('deal', fn($q) => $q->where('created_by', creatorId()))->whereBetween('created_at', [$start, $end])->get();
-            $leadCallsToday = LeadCall::whereHas('lead', fn($q) => $q->where('created_by', creatorId()))->whereBetween('created_at', [$start, $end])->get();
+            $dealCallsToday = DealCall::whereHas('deal', fn($q) => $q->where('created_by', $companyCreatorId))->whereBetween('created_at', [$start, $end])->get();
+            $leadCallsToday = LeadCall::whereHas('lead', fn($q) => $q->where('created_by', $companyCreatorId))->whereBetween('created_at', [$start, $end])->get();
             $callsToday = $dealCallsToday->count() + $leadCallsToday->count();
             $connectedCallsToday = $dealCallsToday->where('call_result', '!=', 'missed')->count() + $leadCallsToday->where('call_result', '!=', 'missed')->count();
             $missedCallsToday = $dealCallsToday->where('call_result', 'missed')->count() + $leadCallsToday->where('call_result', 'missed')->count();
 
-            // Follow-ups today & overdue tasks
-            $dealTasksToday = DealTask::whereHas('deal', fn($q) => $q->where('created_by', creatorId()))->whereDate('date', today())->get();
-            $leadTasksToday = LeadTask::whereHas('lead', fn($q) => $q->where('created_by', creatorId()))->whereDate('date', today())->get();
-            $followupsToday = $dealTasksToday->count() + $leadTasksToday->count();
-            $followupDealsToday = $dealTasksToday->count();
-            $followupLeadsToday = $leadTasksToday->count();
+            // Follow-ups today & overdue tasks (considering both leads.date and LeadTask)
+            $finalRejectedStageIds = LeadStage::where('created_by', $companyCreatorId)->where('is_final_rejected', 1)->pluck('id')->toArray();
+            $finalAcceptedStageIds = LeadStage::where('created_by', $companyCreatorId)->where('is_final_accepted', 1)->pluck('id')->toArray();
 
-            $overdueDealTasks = DealTask::whereHas('deal', fn($q) => $q->where('created_by', creatorId()))->where('date', '<', today())->where('status', 0)->count();
-            $overdueLeadTasks = LeadTask::whereHas('lead', fn($q) => $q->where('created_by', creatorId()))->where('date', '<', today())->where('status', 0)->count();
+            $dealTasksToday = DealTask::whereHas('deal', fn($q) => $q->where('created_by', $companyCreatorId))->whereDate('date', today())->get();
+            $leadTasksToday = LeadTask::whereHas('lead', fn($q) => $q->where('created_by', $companyCreatorId))->whereDate('date', today())->get();
+            
+            $leadsFollowupTodayCount = Lead::where('created_by', $companyCreatorId)
+                ->whereNotNull('date')
+                ->whereDate('date', today())
+                ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+                ->whereNotIn('stage_id', $finalRejectedStageIds)
+                ->count();
+
+            $followupDealsToday = $dealTasksToday->count();
+            $followupLeadsToday = $leadTasksToday->count() + $leadsFollowupTodayCount;
+            $followupsToday = $followupDealsToday + $followupLeadsToday;
+
+            $overdueDealTasks = DealTask::whereHas('deal', fn($q) => $q->where('created_by', $companyCreatorId))->where('date', '<', today())->where('status', 0)->count();
+            $overdueLeadTasksFromTask = LeadTask::whereHas('lead', fn($q) => $q->where('created_by', $companyCreatorId))->where('date', '<', today())->where('status', 0)->count();
+
+            $overdueLeadsCount = Lead::where('created_by', $companyCreatorId)
+                ->whereNotNull('date')
+                ->whereDate('date', '<', today())
+                ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+                ->whereNotIn('stage_id', $finalRejectedStageIds)
+                ->whereNotIn('stage_id', $finalAcceptedStageIds)
+                ->count();
+
+            $overdueLeadTasks = $overdueLeadTasksFromTask + $overdueLeadsCount;
             $overdueTasks = $overdueDealTasks + $overdueLeadTasks;
 
             // 2. Lead Overview (Pipeline wise - filtered by date range)
-            $allPipelines = Pipeline::where('created_by', creatorId())->get();
+            $allPipelines = Pipeline::where('created_by', $companyCreatorId)->get();
             $leadOverview = [];
             foreach ($allPipelines as $pipe) {
-                $cnt = Lead::where('created_by', creatorId())->where('pipeline_id', $pipe->id)->whereBetween('created_at', [$start, $end])->count();
+                $cnt = Lead::where('created_by', $companyCreatorId)->where('pipeline_id', $pipe->id)->whereBetween('created_at', [$start, $end])->count();
                 $leadOverview[] = [
                     'id' => $pipe->id,
                     'name' => $pipe->name,
@@ -148,7 +180,7 @@ class DashboardController extends Controller
             if (array_sum(array_column($leadOverview, 'count')) === 0 && !$request->has('period')) {
                 $leadOverview = [];
                 foreach ($allPipelines as $pipe) {
-                    $cnt = Lead::where('created_by', creatorId())->where('pipeline_id', $pipe->id)->count();
+                    $cnt = Lead::where('created_by', $companyCreatorId)->where('pipeline_id', $pipe->id)->count();
                     $leadOverview[] = [
                         'id' => $pipe->id,
                         'name' => $pipe->name,
@@ -161,7 +193,7 @@ class DashboardController extends Controller
             // 3. Deal Pipeline (Pipeline wise - filtered by date range)
             $dealPipeline = [];
             foreach ($allPipelines as $pipe) {
-                $dDeals = Deal::where('created_by', creatorId())->where('pipeline_id', $pipe->id)->whereBetween('created_at', [$start, $end])->get();
+                $dDeals = Deal::where('created_by', $companyCreatorId)->where('pipeline_id', $pipe->id)->whereBetween('created_at', [$start, $end])->get();
                 $dealPipeline[] = [
                     'id' => $pipe->id,
                     'name' => $pipe->name,
@@ -172,7 +204,7 @@ class DashboardController extends Controller
             if (array_sum(array_column($dealPipeline, 'amount')) === 0 && !$request->has('period')) {
                 $dealPipeline = [];
                 foreach ($allPipelines as $pipe) {
-                    $dDeals = Deal::where('created_by', creatorId())->where('pipeline_id', $pipe->id)->get();
+                    $dDeals = Deal::where('created_by', $companyCreatorId)->where('pipeline_id', $pipe->id)->get();
                     $dealPipeline[] = [
                         'id' => $pipe->id,
                         'name' => $pipe->name,
@@ -184,7 +216,7 @@ class DashboardController extends Controller
             usort($dealPipeline, fn($a, $b) => $b['amount'] <=> $a['amount']);
 
             // 4. Top Performers (Filtered by date range)
-            $teamUsers = User::where('created_by', creatorId())->orWhere('id', creatorId())->select('id', 'name', 'avatar')->get();
+            $teamUsers = User::where('created_by', $companyCreatorId)->orWhere('id', $companyCreatorId)->select('id', 'name', 'avatar')->get();
             $teamPerformance = [];
             foreach ($teamUsers as $tUser) {
                 $userWonDeals = Deal::whereHas('users', fn($q) => $q->where('users.id', $tUser->id))
@@ -216,17 +248,47 @@ class DashboardController extends Controller
 
             // 5. Upcoming Follow-ups
             $upcomingFollowups = [];
-            $upcomingLeadTasks = LeadTask::with(['lead'])->whereDate('date', '>=', today())->orderBy('date', 'asc')->take(4)->get();
+            $upcomingLeadTasks = LeadTask::whereHas('lead', fn($q) => $q->where('created_by', $companyCreatorId))
+                ->with(['lead'])
+                ->whereDate('date', '>=', today())
+                ->orderBy('date', 'asc')
+                ->take(4)
+                ->get();
             foreach ($upcomingLeadTasks as $lt) {
                 $upcomingFollowups[] = [
-                    'id' => 'lead_' . $lt->id,
+                    'id' => 'lead_task_' . $lt->id,
                     'type' => 'LEAD',
                     'title' => $lt->name,
                     'subtitle' => ($lt->lead?->name ?? 'Lead') . ($lt->lead?->subject ? ' · ' . $lt->lead->subject : ''),
                     'time' => $lt->time ? (is_string($lt->time) ? date('h:i A', strtotime($lt->time)) : $lt->time->format('h:i A')) : '10:00 AM',
                 ];
             }
-            $upcomingDealTasks = DealTask::with(['deal'])->whereDate('date', '>=', today())->orderBy('date', 'asc')->take(4)->get();
+            if (count($upcomingFollowups) < 4) {
+                $neededCount = 4 - count($upcomingFollowups);
+                $upcomingLeads = Lead::where('created_by', $companyCreatorId)
+                    ->whereNotNull('date')
+                    ->whereDate('date', '>=', today())
+                    ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+                    ->whereNotIn('stage_id', $finalRejectedStageIds)
+                    ->orderBy('date', 'asc')
+                    ->take($neededCount)
+                    ->get();
+                foreach ($upcomingLeads as $ul) {
+                    $upcomingFollowups[] = [
+                        'id' => 'lead_' . $ul->id,
+                        'type' => 'LEAD',
+                        'title' => $ul->subject ? $ul->subject : $ul->name,
+                        'subtitle' => $ul->name . ($ul->organization_type ? ' · ' . $ul->organization_type : ''),
+                        'time' => $ul->date ? (is_string($ul->date) ? date('h:i A', strtotime($ul->date)) : $ul->date->format('h:i A')) : '10:00 AM',
+                    ];
+                }
+            }
+            $upcomingDealTasks = DealTask::whereHas('deal', fn($q) => $q->where('created_by', $companyCreatorId))
+                ->with(['deal'])
+                ->whereDate('date', '>=', today())
+                ->orderBy('date', 'asc')
+                ->take(4)
+                ->get();
             foreach ($upcomingDealTasks as $dt) {
                 $upcomingFollowups[] = [
                     'id' => 'deal_' . $dt->id,
@@ -240,18 +302,38 @@ class DashboardController extends Controller
             // 6. Top Products (Filtered by date range)
             $topProducts = [];
             if (class_exists(\Automas\ProductService\Models\ProductServiceItem::class)) {
-                $products = \Automas\ProductService\Models\ProductServiceItem::where('created_by', creatorId())->get();
-                $wonDeals = Deal::where('created_by', creatorId())->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->get();
+                $products = \Automas\ProductService\Models\ProductServiceItem::where('created_by', $companyCreatorId)->get();
+                $wonDeals = Deal::where('created_by', $companyCreatorId)->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->get();
                 if ($wonDeals->isEmpty() && !$request->has('period')) {
-                    $wonDeals = Deal::where('created_by', creatorId())->where('status', 'Won')->get();
+                    $wonDeals = Deal::where('created_by', $companyCreatorId)->where('status', 'Won')->get();
                 }
 
                 foreach ($products as $prod) {
                     $wonValue = 0;
+                    $wonDealsCount = 0;
                     foreach ($wonDeals as $wDeal) {
-                        $pList = is_array($wDeal->products) ? $wDeal->products : (is_string($wDeal->products) ? json_decode($wDeal->products, true) : []);
+                        $rawProducts = $wDeal->products;
+                        if (is_numeric($rawProducts)) {
+                            $pList = [(int) $rawProducts];
+                        } elseif (is_string($rawProducts)) {
+                            $decoded = json_decode($rawProducts, true);
+                            if (is_array($decoded)) {
+                                $pList = $decoded;
+                            } elseif (is_numeric($decoded)) {
+                                $pList = [(int) $decoded];
+                            } else {
+                                $pList = array_filter(array_map('trim', explode(',', $rawProducts)));
+                            }
+                        } elseif (is_array($rawProducts)) {
+                            $pList = $rawProducts;
+                        } else {
+                            $pList = [];
+                        }
+                        $pList = array_values(array_filter((array) $pList));
+
                         if (!empty($pList) && (in_array($prod->id, $pList) || in_array((string)$prod->id, $pList) || in_array($prod->name, $pList))) {
                             $wonValue += (float) $wDeal->price;
+                            $wonDealsCount++;
                         }
                     }
                     if ($wonValue > 0) {
@@ -259,6 +341,7 @@ class DashboardController extends Controller
                             'id' => $prod->id,
                             'name' => $prod->name,
                             'wonValue' => $wonValue,
+                            'wonDeals' => $wonDealsCount,
                         ];
                     }
                 }
@@ -266,318 +349,181 @@ class DashboardController extends Controller
                 $topProducts = array_slice($topProducts, 0, 5);
             }
 
-            // 6.b Top Sellers in Product Category
-            // 6.b Top Sellers in Product Category Leaderboard (Real DB Won Deals Calculation)
+            // 6.b Top Sellers in Product Category metadata options (lightweight options for filters)
             $productCategories = [];
             if (class_exists(\Automas\ProductService\Models\ProductServiceCategory::class)) {
-                $productCategories = \Automas\ProductService\Models\ProductServiceCategory::where('created_by', creatorId())
+                $productCategories = \Automas\ProductService\Models\ProductServiceCategory::where('created_by', $companyCreatorId)
                     ->get(['id', 'name', 'color'])
                     ->toArray();
             }
 
-            $sellerUsersList = User::where('created_by', creatorId())
-                ->orWhere('id', creatorId())
-                ->get(['id', 'name', 'avatar'])
-                ->toArray();
-            $sellerUsersMap = collect($sellerUsersList)->keyBy('id');
+            $sellerUsersQuery = User::where('created_by', $companyCreatorId)
+                ->whereNotIn('type', ['client', 'vendor', 'Client', 'Vendor', 'superadmin', 'Super Admin', 'company', 'Company', 'hr', 'HR']);
 
-            $wonDealsCategory = Deal::where('created_by', creatorId())
-                ->where('status', 'Won')
-                ->whereBetween('updated_at', [$start, $end])
-                ->with(['users'])
-                ->get();
-            if ($wonDealsCategory->isEmpty() && !$request->has('period')) {
-                $wonDealsCategory = Deal::where('created_by', creatorId())
-                    ->where('status', 'Won')
-                    ->with(['users'])
-                    ->get();
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'is_disable')) {
+                $sellerUsersQuery->where(function ($sq) {
+                    $sq->whereNull('is_disable')->orWhere('is_disable', '!=', 1);
+                });
             }
 
-            $productItemsMap = [];
-            if (class_exists(\Automas\ProductService\Models\ProductServiceItem::class)) {
-                $productItemsMap = \Automas\ProductService\Models\ProductServiceItem::where('created_by', creatorId())
-                    ->with('category')
-                    ->get()
-                    ->keyBy('id');
-            }
+            $sellerUsersList = $sellerUsersQuery->get(['id', 'name', 'avatar'])->toArray();
+            $categorySellers = [];
 
-            $matrixSellers = [];
-            $categoryTotals = [];
-            $distinctCategories = [];
-            $totalProductsSold = 0;
-            $totalSalesValue = 0;
-            $activeSellersSet = [];
-            $categorySellersMap = [];
-
-            foreach ($wonDealsCategory as $wDeal) {
-                $dealPrice = (float) $wDeal->price;
-                $totalSalesValue += $dealPrice;
-
-                $dealUsers = $wDeal->users->count() > 0 ? $wDeal->users : collect([$sellerUsersMap[$wDeal->created_by] ?? User::find($wDeal->created_by)]);
-                $dealUsers = $dealUsers->filter();
-
-                $rawProducts = $wDeal->products;
-                if (is_string($rawProducts)) {
-                    $rawProducts = json_decode($rawProducts, true) ?: array_filter(array_map('trim', explode(',', $rawProducts)));
+            // 8. Sales Performance Trend (Filter-wise: <= 30 days -> Day-wise, > 30 days -> Month-wise)
+            $salesPerformance = [];
+            $diffDays = (int) ceil(abs($end->timestamp - $start->timestamp) / 86400);
+            if ($diffDays <= 30) {
+                // Day-wise aggregation
+                $curr = $start->copy();
+                while ($curr->lte($end)) {
+                    $dLabel = $curr->format('d M');
+                    $dVal = Deal::where('created_by', $companyCreatorId)
+                        ->where('status', 'Won')
+                        ->whereDate('updated_at', $curr->format('Y-m-d'))
+                        ->sum('price');
+                    $salesPerformance[] = [
+                        'month' => $dLabel,
+                        'value' => (float) $dVal,
+                    ];
+                    $curr->addDay();
                 }
-                if (!is_array($rawProducts)) {
-                    $rawProducts = [];
-                }
-                $pList = array_values(array_filter($rawProducts));
-
-                if (empty($pList)) {
-                    $pCategories = [['id' => 0, 'name' => 'General', 'color' => '#6366f1', 'prodName' => 'General Item']];
-                } else {
-                    $pCategories = [];
-                    foreach ($pList as $pId) {
-                        $pObj = is_numeric($pId) ? ($productItemsMap[$pId] ?? null) : null;
-                        $cId = $pObj ? ($pObj->category_id ?? 0) : 0;
-                        $cName = ($pObj && $pObj->category) ? $pObj->category->name : 'General';
-                        $cColor = ($pObj && $pObj->category && $pObj->category->color) ? $pObj->category->color : '#6366f1';
-                        $prodName = $pObj ? $pObj->name : (is_string($pId) && !is_numeric($pId) ? $pId : 'Product #' . $pId);
-                        $pCategories[] = ['id' => $cId, 'name' => $cName, 'color' => $cColor, 'prodName' => $prodName];
-                    }
-                }
-
-                $prodCount = max(1, count($pCategories));
-                $amountPerProd = $dealPrice / $prodCount;
-
-                foreach ($dealUsers as $u) {
-                    if (!$u) continue;
-                    $activeSellersSet[$u->id] = true;
-
-                    if (!isset($matrixSellers[$u->id])) {
-                        $nameParts = explode(' ', trim($u->name));
-                        $initials = '';
-                        foreach ($nameParts as $np) {
-                            if (!empty($np)) $initials .= strtoupper($np[0]);
-                        }
-                        $matrixSellers[$u->id] = [
-                            'id' => $u->id,
-                            'name' => $u->name,
-                            'avatar' => substr($initials, 0, 2) ?: 'U',
-                            'values' => [],
-                            'amounts' => [],
-                            'totalAmount' => 0,
-                            'totalUnits' => 0,
-                        ];
-                    }
-
-                    foreach ($pCategories as $catInfo) {
-                        $cName = $catInfo['name'];
-                        $distinctCategories[$cName] = true;
-                        $totalProductsSold += 1;
-
-                        if (!isset($matrixSellers[$u->id]['values'][$cName])) {
-                            $matrixSellers[$u->id]['values'][$cName] = 0;
-                            $matrixSellers[$u->id]['amounts'][$cName] = 0;
-                        }
-                        $matrixSellers[$u->id]['values'][$cName] += 1;
-                        $matrixSellers[$u->id]['amounts'][$cName] += $amountPerProd;
-                        $matrixSellers[$u->id]['totalUnits'] += 1;
-                        $matrixSellers[$u->id]['totalAmount'] += $amountPerProd;
-
-                        if (!isset($categoryTotals[$cName])) {
-                            $categoryTotals[$cName] = [
-                                'totalAmount' => 0,
-                                'totalUnits' => 0,
-                                'sellers' => [],
-                            ];
-                        }
-                        $categoryTotals[$cName]['totalAmount'] += $amountPerProd;
-                        $categoryTotals[$cName]['totalUnits'] += 1;
-
-                        if (!isset($categoryTotals[$cName]['sellers'][$u->id])) {
-                            $categoryTotals[$cName]['sellers'][$u->id] = [
-                                'name' => $u->name,
-                                'units' => 0,
-                                'amount' => 0,
-                            ];
-                        }
-                        $categoryTotals[$cName]['sellers'][$u->id]['units'] += 1;
-                        $categoryTotals[$cName]['sellers'][$u->id]['amount'] += $amountPerProd;
-
-                        // Maintain categorySellers legacy array
-                        $key = $u->id . '_' . $catInfo['id'] . '_' . $cName;
-                        if (!isset($categorySellersMap[$key])) {
-                            $categorySellersMap[$key] = [
-                                'userId' => $u->id,
-                                'userName' => $u->name,
-                                'userAvatar' => $u->avatar,
-                                'categoryId' => $catInfo['id'],
-                                'categoryName' => $cName,
-                                'categoryColor' => $catInfo['color'],
-                                'productName' => $catInfo['prodName'],
-                                'dealsCount' => 0,
-                                'totalAmount' => 0,
-                            ];
-                        }
-                        $categorySellersMap[$key]['dealsCount'] += 1;
-                        $categorySellersMap[$key]['totalAmount'] += $amountPerProd;
-                    }
+            } else {
+                // Month-wise aggregation
+                $curr = $start->copy()->startOfMonth();
+                $endMonth = $end->copy()->endOfMonth();
+                while ($curr->lte($endMonth)) {
+                    $mLabel = $curr->format('M Y');
+                    $mVal = Deal::where('created_by', $companyCreatorId)
+                        ->where('status', 'Won')
+                        ->whereYear('updated_at', $curr->year)
+                        ->whereMonth('updated_at', $curr->month)
+                        ->sum('price');
+                    $salesPerformance[] = [
+                        'month' => $mLabel,
+                        'value' => (float) $mVal,
+                    ];
+                    $curr->addMonth();
                 }
             }
 
-            $sellersList = array_values($matrixSellers);
-            usort($sellersList, fn($a, $b) => $b['totalAmount'] <=> $a['totalAmount'] ?: $b['totalUnits'] <=> $a['totalUnits']);
+            $dbSources = Source::where('created_by', $companyCreatorId)->get();
 
-            $badgeColors = ['bg-amber-400 text-white', 'bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200', 'bg-amber-600 text-white'];
-            $avatarColors = ['bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300', 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-300', 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300', 'bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-300', 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'];
+            // Query the exact same leads as $totalLeads for the selected period
+            $leadsForSources = Lead::where('created_by', $companyCreatorId)
+                ->whereBetween('created_at', [$start, $end])
+                ->get(['id', 'sources']);
 
-            foreach ($sellersList as $idx => &$sRow) {
-                $sRow['rank'] = $idx + 1;
-                $sRow['badgeColor'] = $badgeColors[$idx] ?? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
-                $sRow['avatarColor'] = $avatarColors[$idx % count($avatarColors)];
+            if ($leadsForSources->isEmpty() && !$request->has('period')) {
+                $leadsForSources = Lead::where('created_by', $companyCreatorId)->get(['id', 'sources']);
             }
 
-            $categoriesList = array_keys($distinctCategories);
-            if (empty($categoriesList) && class_exists(\Automas\ProductService\Models\ProductServiceCategory::class)) {
-                $categoriesList = \Automas\ProductService\Models\ProductServiceCategory::where('created_by', creatorId())->pluck('name')->toArray();
-            }
+            $palette = [
+                '#3b82f6',
+                '#10b981',
+                '#f59e0b',
+                '#a855f7',
+                '#ec4899',
+                '#06b6d4',
+                '#6366f1',
+                '#f43f5e',
+                '#8b5cf6',
+                '#64748b'
+            ];
 
-            $categoryLeadersList = [];
-            foreach ($categoryTotals as $catName => $cData) {
-                $sMap = array_values($cData['sellers']);
-                usort($sMap, fn($a, $b) => $b['units'] <=> $a['units'] ?: $b['amount'] <=> $a['amount']);
-                $topLeader = $sMap[0] ?? null;
+            $sourceCountsMap = [];
+            foreach ($dbSources as $source) {
+                $sourceIdStr = (string) $source->id;
+                $sourceName = trim($source->name);
 
-                if ($topLeader) {
-                    $categoryLeadersList[] = [
-                        'category' => $catName,
-                        'leader' => $topLeader['name'],
-                        'units' => $topLeader['units'] . ' units',
-                        'amount' => (float) $topLeader['amount'],
+                if (!isset($sourceCountsMap[$sourceName])) {
+                    $sourceCountsMap[$sourceName] = [
+                        'name' => $sourceName,
+                        'count' => 0,
+                        'source_ids' => [],
                     ];
                 }
+                $sourceCountsMap[$sourceName]['source_ids'][] = $sourceIdStr;
             }
 
-            $categoryLeaderboard = [
-                'categories' => $categoriesList,
-                'sellers' => $sellersList,
-                'leaders' => $categoryLeadersList,
-                'summary' => [
-                    'totalProductsSold' => $totalProductsSold,
-                    'totalSalesValue' => (float) $totalSalesValue,
-                    'activeSellersCount' => count($activeSellersSet),
-                    'productCategoriesCount' => count($categoriesList),
-                ],
-            ];
+            $assignedLeadIds = [];
+            foreach ($leadsForSources as $lead) {
+                if (empty($lead->sources)) {
+                    continue;
+                }
+                $leadSourceItems = array_map('trim', explode(',', (string) $lead->sources));
+                $matched = false;
 
-            $categorySellers = array_values($categorySellersMap);
-            usort($categorySellers, fn($a, $b) => $b['dealsCount'] <=> $a['dealsCount'] ?: $b['totalAmount'] <=> $a['totalAmount']);
+                // Match lead to its primary source and break to ensure 1 lead = 1 count in chart sum
+                foreach ($leadSourceItems as $item) {
+                    foreach ($sourceCountsMap as $name => &$data) {
+                        if (in_array($item, $data['source_ids'], true) || strcasecmp($item, $name) === 0) {
+                            $data['count']++;
+                            $matched = true;
+                            break 2;
+                        }
+                    }
+                }
 
-            // 7. Calendars: Follow-up Calendar Events & Tasks Calendar Events
-            $followupEvents = [];
-            $upcomingLeadTasks = LeadTask::with(['lead'])->whereDate('date', '>=', today())->orderBy('date', 'asc')->get();
-            foreach ($upcomingLeadTasks as $lt) {
-                $dStr = $lt->date ? $lt->date->format('Y-m-d') : now()->format('Y-m-d');
-                $followupEvents[] = [
-                    'id' => 'lead_f_' . $lt->id,
-                    'title' => 'LEAD: ' . $lt->name . ($lt->lead?->name ? ' (' . $lt->lead->name . ')' : ''),
-                    'startDate' => $dStr,
-                    'endDate' => $dStr,
-                    'time' => $lt->time ? (is_string($lt->time) ? $lt->time : $lt->time->format('H:i')) : '10:00',
-                    'color' => '#10b981',
-                    'type' => 'Lead Follow-up',
-                ];
+                if ($matched) {
+                    $assignedLeadIds[$lead->id] = true;
+                }
             }
-            $upcomingDealTasks = DealTask::with(['deal'])->whereDate('date', '>=', today())->orderBy('date', 'asc')->get();
-            foreach ($upcomingDealTasks as $dt) {
-                $dStr = $dt->date ? $dt->date->format('Y-m-d') : now()->format('Y-m-d');
-                $followupEvents[] = [
-                    'id' => 'deal_f_' . $dt->id,
-                    'title' => 'DEAL: ' . $dt->name . ($dt->deal?->name ? ' (' . $dt->deal->name . ')' : ''),
-                    'startDate' => $dStr,
-                    'endDate' => $dStr,
-                    'time' => $dt->time ? (is_string($dt->time) ? $dt->time : $dt->time->format('H:i')) : '11:00',
-                    'color' => '#3b82f6',
-                    'type' => 'Deal Follow-up',
-                ];
+            unset($data);
+
+            $otherCount = 0;
+            foreach ($leadsForSources as $lead) {
+                if (!isset($assignedLeadIds[$lead->id])) {
+                    $otherCount++;
+                }
             }
 
-            $taskEvents = [];
-            $allLeadTasks = LeadTask::with(['lead'])->get();
-            foreach ($allLeadTasks as $lt) {
-                $dStr = $lt->date ? $lt->date->format('Y-m-d') : now()->format('Y-m-d');
-                $taskEvents[] = [
-                    'id' => 'lead_t_' . $lt->id,
-                    'title' => $lt->name,
-                    'startDate' => $dStr,
-                    'endDate' => $dStr,
-                    'time' => $lt->time ? (is_string($lt->time) ? $lt->time : $lt->time->format('H:i')) : '09:00',
-                    'status' => $lt->status ? 'completed' : 'pending',
-                    'color' => $lt->status ? '#10b981' : '#f59e0b',
-                    'type' => 'Lead Task',
-                ];
+            $leadSources = [];
+            $colorIdx = 0;
+            foreach ($sourceCountsMap as $data) {
+                if ($data['count'] > 0) {
+                    $leadSources[] = [
+                        'name' => $data['name'],
+                        'count' => $data['count'],
+                        'color' => $palette[$colorIdx % count($palette)],
+                    ];
+                    $colorIdx++;
+                }
             }
-            $allDealTasks = DealTask::with(['deal'])->get();
-            foreach ($allDealTasks as $dt) {
-                $dStr = $dt->date ? $dt->date->format('Y-m-d') : now()->format('Y-m-d');
-                $taskEvents[] = [
-                    'id' => 'deal_t_' . $dt->id,
-                    'title' => $dt->name,
-                    'startDate' => $dStr,
-                    'endDate' => $dStr,
-                    'time' => $dt->time ? (is_string($dt->time) ? $dt->time : $dt->time->format('H:i')) : '09:00',
-                    'status' => $dt->status ? 'completed' : 'pending',
-                    'color' => $dt->status ? '#10b981' : '#3b82f6',
-                    'type' => 'Deal Task',
+
+            usort($leadSources, fn($a, $b) => $b['count'] <=> $a['count']);
+
+            if ($otherCount > 0 || empty($leadSources)) {
+                $leadSources[] = [
+                    'name' => 'Other / Unassigned',
+                    'count' => $otherCount,
+                    'color' => '#94a3b8',
                 ];
             }
 
-            // 8. Sales Performance Trend
-            $salesPerformance = [];
-            $diffMonths = max(1, (int) round($start->diffInMonths($end)));
-            if ($diffMonths < 2) $diffMonths = 6;
-            for ($i = $diffMonths - 1; $i >= 0; $i--) {
-                $dt = $end->copy()->subMonths($i);
-                $mLabel = $dt->format('M Y');
-                $mVal = Deal::where('created_by', creatorId())
-                    ->where('status', 'Won')
-                    ->whereMonth('updated_at', $dt->month)
-                    ->whereYear('updated_at', $dt->year)
-                    ->sum('price');
-                $salesPerformance[] = [
-                    'month' => $mLabel,
-                    'value' => (float) $mVal,
-                ];
-            }
+            // 10. Win rate & Needs attention metrics (Filtered strictly by date range, defaults to This Month)
+            $totalWonCount = Deal::where('created_by', $companyCreatorId)->where('status', 'Won')->where(function ($q) use ($start, $end) {
+                $q->whereBetween('updated_at', [$start, $end])->orWhereBetween('created_at', [$start, $end]);
+            })->count();
+            $totalLostCount = Deal::where('created_by', $companyCreatorId)->where('status', 'Loss')->where(function ($q) use ($start, $end) {
+                $q->whereBetween('updated_at', [$start, $end])->orWhereBetween('created_at', [$start, $end]);
+            })->count();
+            $totalPeriodDeals = Deal::where('created_by', $companyCreatorId)->whereBetween('created_at', [$start, $end])->count();
 
-            // 9. Lead Sources breakdown (Filtered by date range)
-            $leadSources = [
-                ['name' => 'Website', 'count' => Lead::where('created_by', creatorId())->whereBetween('created_at', [$start, $end])->where('sources', 'like', '%website%')->count(), 'color' => '#3b82f6'],
-                ['name' => 'Facebook', 'count' => Lead::where('created_by', creatorId())->whereBetween('created_at', [$start, $end])->where('sources', 'like', '%facebook%')->count(), 'color' => '#14b8a6'],
-                ['name' => 'Referrals', 'count' => Lead::where('created_by', creatorId())->whereBetween('created_at', [$start, $end])->where('sources', 'like', '%referral%')->count(), 'color' => '#a855f7'],
-                ['name' => 'Phone', 'count' => Lead::where('created_by', creatorId())->whereBetween('created_at', [$start, $end])->where('sources', 'like', '%phone%')->count(), 'color' => '#f59e0b'],
-                ['name' => 'Other', 'count' => Lead::where('created_by', creatorId())->whereBetween('created_at', [$start, $end])->where(function($q) {
-                    $q->whereNull('sources')->orWhere('sources', '');
-                })->count(), 'color' => '#94a3b8'],
-            ];
-            if (array_sum(array_column($leadSources, 'count')) === 0 && !$request->has('period')) {
-                $leadSources = [
-                    ['name' => 'Website', 'count' => Lead::where('created_by', creatorId())->where('sources', 'like', '%website%')->count(), 'color' => '#3b82f6'],
-                    ['name' => 'Facebook', 'count' => Lead::where('created_by', creatorId())->where('sources', 'like', '%facebook%')->count(), 'color' => '#14b8a6'],
-                    ['name' => 'Referrals', 'count' => Lead::where('created_by', creatorId())->where('sources', 'like', '%referral%')->count(), 'color' => '#a855f7'],
-                    ['name' => 'Phone', 'count' => Lead::where('created_by', creatorId())->where('sources', 'like', '%phone%')->count(), 'color' => '#f59e0b'],
-                    ['name' => 'Other', 'count' => Lead::where('created_by', creatorId())->where(function($q) {
-                        $q->whereNull('sources')->orWhere('sources', '');
-                    })->count(), 'color' => '#94a3b8'],
-                ];
-            }
-
-            // 10. Win rate & Needs attention metrics (Filtered by date range)
-            $totalWonCount = Deal::where('created_by', creatorId())->where('status', 'Won')->whereBetween('updated_at', [$start, $end])->count();
-            $totalLostCount = Deal::where('created_by', creatorId())->where('status', 'Loss')->whereBetween('updated_at', [$start, $end])->count();
-            if ($totalWonCount === 0 && $totalLostCount === 0 && !$request->has('period')) {
-                $totalWonCount = Deal::where('created_by', creatorId())->where('status', 'Won')->count();
-                $totalLostCount = Deal::where('created_by', creatorId())->where('status', 'Loss')->count();
-            }
             $totalClosedCount = $totalWonCount + $totalLostCount;
-            $winRate = $totalClosedCount > 0 ? (int) round(($totalWonCount / $totalClosedCount) * 100) : 0;
+            $denominator = $totalPeriodDeals > 0 ? $totalPeriodDeals : ($totalClosedCount > 0 ? $totalClosedCount : 0);
+            $winRate = $denominator > 0 ? (int) round(($totalWonCount / $denominator) * 100) : 0;
 
-            $uncontactedLeads = Lead::where('created_by', creatorId())->whereDoesntHave('calls')->count();
-            $unassignedLeads = Lead::where('created_by', creatorId())->whereDoesntHave('userLeads')->count();
-            $inactiveDeals = Deal::where('created_by', creatorId())->where('is_active', false)->count();
+            $uncontactedLeads = Lead::where('created_by', $companyCreatorId)
+                ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+                ->whereDoesntHave('calls')
+                ->count();
+            $unassignedLeads = Lead::where('created_by', $companyCreatorId)
+                ->where(fn($q) => $q->whereNull('user_id')->orWhere('user_id', 0))
+                ->count();
+            $inactiveDeals = Deal::where('created_by', $companyCreatorId)
+                ->whereNotIn('status', ['Won', 'Loss'])
+                ->where('updated_at', '<', now()->subDays(14))
+                ->count();
 
             $needsAttention = [
                 'uncontactedLeads' => $uncontactedLeads,
@@ -585,15 +531,18 @@ class DashboardController extends Controller
                 'inactiveDeals' => $inactiveDeals,
                 'followupLeadsToday' => $followupLeadsToday,
                 'overdueLeadTasks' => $overdueLeadTasks,
+                'overdueDealTasks' => $overdueDealTasks,
+                'followupDealsToday' => $followupDealsToday,
             ];
 
             $winRateStats = [
                 'winRate' => $winRate,
                 'wonCount' => $totalWonCount,
                 'lostCount' => $totalLostCount,
+                'totalDeals' => max($totalPeriodDeals, $totalClosedCount),
             ];
 
-            $pipelines = Pipeline::where('created_by', creatorId())->get(['id', 'name']);
+            $pipelines = Pipeline::where('created_by', $companyCreatorId)->get(['id', 'name']);
 
             return Inertia::render('Lead/Dashboard/CompanyDashboard', [
                 'stats' => [
@@ -627,7 +576,7 @@ class DashboardController extends Controller
                 'teamPerformance' => $teamPerformance,
                 'upcomingFollowups' => $upcomingFollowups,
                 'topProducts' => $topProducts,
-                'categoryLeaderboard' => $categoryLeaderboard,
+                'categoryLeaderboard' => null,
                 'categorySellers' => $categorySellers,
                 'productCategories' => $productCategories,
                 'sellerUsers' => $sellerUsersList,
@@ -638,10 +587,8 @@ class DashboardController extends Controller
                 'pipelines' => $pipelines,
                 'message' => __('Lead Dashboard - Manage your leads and deals efficiently.'),
             ]);
-        }
-
-        return back()->with('error', __('Permission denied'));
     }
+
 
     private function clientDashboard(Request $request)
     {
@@ -675,13 +622,15 @@ class DashboardController extends Controller
         $calendarEvents = [];
         $clientDeals = ClientDeal::where('client_id', $user->id)->with('deal.tasks')->get();
         foreach ($clientDeals as $clientDeal) {
+            if (!$clientDeal->deal || !$clientDeal->deal->tasks) continue;
             foreach ($clientDeal->deal->tasks as $task) {
+                $dStr = $task->date ? $task->date->format('Y-m-d') : now()->format('Y-m-d');
                 $calendarEvents[] = [
                     'id' => 'deal_' . $task->id,
                     'title' => $task->name,
-                    'startDate' => $task->date->format('Y-m-d'),
-                    'endDate' => $task->date->format('Y-m-d'),
-                    'time' => $task->time ? $task->time->format('H:i') : '09:00',
+                    'startDate' => $dStr,
+                    'endDate' => $dStr,
+                    'time' => $task->time ? (is_string($task->time) ? $task->time : $task->time->format('H:i')) : '09:00',
                     'status' => $task->status ? 'completed' : 'pending',
                     'name' => $clientDeal->deal->name,
                     'color' => $task->status ? '#10b981' : '#f59e0b',
@@ -707,176 +656,576 @@ class DashboardController extends Controller
     private function userDashboard(Request $request)
     {
         $user = Auth::user();
+        $companyCreatorId = creatorId();
 
-        // leads, deals, calls
+        [$start, $end] = $this->getDateRange($request);
 
-        // Get assigned deals and leads for user
-        $assignedDealIds = UserDeal::where('user_id', $user->id)->pluck('deal_id');
-        $assignedLeadIds = UserLead::where('user_id', $user->id)->pluck('lead_id');
+        // 1. Permission Scoping (all / any / own)
+        $canManageAnyLeads = $user->can('manage-any-leads') || ($user->can('manage-leads') && !$user->can('manage-own-leads'));
+        $canManageAnyDeals = $user->can('manage-any-deals') || ($user->can('manage-deals') && !$user->can('manage-own-deals'));
 
-        // Lead stats (assigned to user)
-        $assignedLeads = Lead::whereIn('id', $assignedLeadIds);
-        $todayLeads = (clone $assignedLeads)->whereDate('created_at', now()->toDateString())->count();
-        $yesterdayLeads = (clone $assignedLeads)->whereDate('created_at', now()->subDay()->toDateString())->count();
-        $monthlyLeads = (clone $assignedLeads)->whereMonth('created_at', now()->month)->count();
-        $totalLeads = (clone $assignedLeads)->count();
-        $avgDailyLeads = round($monthlyLeads / max(1, now()->day), 1);
+        // Lead base query scoped by permission
+        $leadBase = Lead::where('created_by', $companyCreatorId);
+        if (!$canManageAnyLeads) {
+            $leadBase->where(function ($subQ) use ($user) {
+                $subQ->where('user_id', $user->id)
+                    ->orWhere('creator_id', $user->id)
+                    ->orWhereHas('userLeads', fn($lq) => $lq->where('user_id', $user->id));
+            });
+        }
 
-        // Deal stats (assigned to user)
-        $assignedDeals = Deal::whereIn('id', $assignedDealIds);
-        $convertedDeals = (clone $assignedLeads)->where('is_converted', '>', 0)->count();
-        $activeDeals = (clone $assignedDeals)->where('status', 'Active')->count();
-        $wonDeals = (clone $assignedDeals)->where('status', 'Won')->count();
-        $lostDeals = (clone $assignedDeals)->where('status', 'Loss')->count();
+        // Deal base query scoped by permission
+        $dealBase = Deal::where('created_by', $companyCreatorId);
+        if (!$canManageAnyDeals) {
+            $dealBase->where(function ($subQ) use ($user) {
+                $subQ->where('creator_id', $user->id)
+                    ->orWhereHas('userDeals', fn($dq) => $dq->where('user_id', $user->id));
+            });
+        }
 
-        // Call stats (calls for assigned deals/leads or created by user)
-        $dealCalls = DealCall::whereIn('deal_id', $assignedDealIds);
-        $leadCalls = LeadCall::whereIn('lead_id', $assignedLeadIds);
+        $permittedDealIds = (clone $dealBase)->pluck('id');
+        $permittedLeadIds = (clone $leadBase)->pluck('id');
+
+        // 2. Lead Performance Stats (Today, Yesterday, This Month, Prev Month)
+        $todayLeads = (clone $leadBase)->whereDate('created_at', today())->count();
+        $yesterdayLeads = (clone $leadBase)->whereDate('created_at', today()->subDay())->count();
+        $thisMonthLeads = (clone $leadBase)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
+        $prevMonthLeads = (clone $leadBase)->whereMonth('created_at', now()->subMonth()->month)->whereYear('created_at', now()->subMonth()->year)->count();
+        $monthlyLeads = (clone $leadBase)->whereBetween('created_at', [$start, $end])->count();
+        $totalLeads = (clone $leadBase)->count();
+        $avgDailyLeads = round($thisMonthLeads / max(1, now()->day), 1);
+
+        // 3. Deal Performance Stats (Today, Yesterday, This Month, Prev Month)
+        $todayDeals = (clone $dealBase)->whereDate('created_at', today())->count();
+        $yesterdayDeals = (clone $dealBase)->whereDate('created_at', today()->subDay())->count();
+        $thisMonthDeals = (clone $dealBase)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
+        $prevMonthDeals = (clone $dealBase)->whereMonth('created_at', now()->subMonth()->month)->whereYear('created_at', now()->subMonth()->year)->count();
+
+        // Active & Closed Deals
+        $activeDealsQuery = (clone $dealBase)->whereNotIn('status', ['Won', 'Loss']);
+        if ($request->has('period')) {
+            $activeDealsQuery->whereBetween('created_at', [$start, $end]);
+        }
+        $activeDeals = (clone $activeDealsQuery)->count();
+        $openDealValue = (float) (clone $activeDealsQuery)->sum('price');
+
+        if ($activeDeals === 0 && !$request->has('period')) {
+            $allActiveDealsQuery = (clone $dealBase)->whereNotIn('status', ['Won', 'Loss']);
+            $activeDeals = (clone $allActiveDealsQuery)->count();
+            $openDealValue = (float) (clone $allActiveDealsQuery)->sum('price');
+        }
+
+        $wonDealsQuery = (clone $dealBase)->where('status', 'Won');
+        $wonDeals = (clone $wonDealsQuery)->count();
+        $wonDealAmount = (float) (clone $wonDealsQuery)->whereBetween('updated_at', [$start, $end])->sum('price');
+        if ($wonDealAmount === 0.0 && !$request->has('period')) {
+            $wonDealAmount = (float) (clone $wonDealsQuery)->sum('price');
+        }
+        $wonDealsThisMonth = (clone $dealBase)->where('status', 'Won')->whereMonth('updated_at', now()->month)->whereYear('updated_at', now()->year)->count();
+        $lostDeals = (clone $dealBase)->where('status', 'Loss')->count();
+        $convertedDeals = (clone $leadBase)->where('is_converted', '>', 0)->count();
+        $totalAmount = (float) (clone $dealBase)->sum('price');
+
+        // 4. Calls
+        $dealCalls = DealCall::whereIn('deal_id', $permittedDealIds);
+        $leadCalls = LeadCall::whereIn('lead_id', $permittedLeadIds);
         $todayCalls = (clone $dealCalls)->whereDate('created_at', today())->count() + (clone $leadCalls)->whereDate('created_at', today())->count();
         $yesterdayCalls = (clone $dealCalls)->whereDate('created_at', today()->subDay())->count() + (clone $leadCalls)->whereDate('created_at', today()->subDay())->count();
         $monthlyCalls = (clone $dealCalls)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + (clone $leadCalls)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
         $totalCalls = (clone $dealCalls)->count() + (clone $leadCalls)->count();
 
-        // Task statistics
-        $completedTasks = DealTask::whereIn('deal_id', $assignedDealIds)
-            ->where('status', 1)->count() +
-            LeadTask::whereIn('lead_id', $assignedLeadIds)
-                ->where('status', 1)->count();
+        // 5. Tasks
+        $completedTasks = DealTask::whereIn('deal_id', $permittedDealIds)->where('status', 1)->count() +
+            LeadTask::whereIn('lead_id', $permittedLeadIds)->where('status', 1)->count();
+        $pendingTasks = DealTask::whereIn('deal_id', $permittedDealIds)->where('status', 0)->count() +
+            LeadTask::whereIn('lead_id', $permittedLeadIds)->where('status', 0)->count();
 
-        $pendingTasks = DealTask::whereIn('deal_id', $assignedDealIds)
-            ->where('status', 0)->count() +
-            LeadTask::whereIn('lead_id', $assignedLeadIds)
-                ->where('status', 0)->count();
+        // 6. Needs Attention (Scoped to user)
+        $finalRejectedStageIds = LeadStage::where('created_by', $companyCreatorId)->where('is_final_rejected', 1)->pluck('id')->toArray();
+        $finalAcceptedStageIds = LeadStage::where('created_by', $companyCreatorId)->where('is_final_accepted', 1)->pluck('id')->toArray();
 
-        // Recent assigned deals
-        $recentDeals = Deal::whereIn('id', $assignedDealIds)
-            ->with('stage')
+        $leadsFollowupTodayCount = (clone $leadBase)
+            ->whereNotNull('date')
+            ->whereDate('date', today())
+            ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+            ->whereNotIn('stage_id', $finalRejectedStageIds)
+            ->count();
+        $leadTasksTodayCount = LeadTask::whereIn('lead_id', $permittedLeadIds)->whereDate('date', today())->count();
+        $dealTasksTodayCount = DealTask::whereIn('deal_id', $permittedDealIds)->whereDate('date', today())->count();
+
+        $followupLeadsToday = $leadsFollowupTodayCount + $leadTasksTodayCount;
+        $followupDealsToday = $dealTasksTodayCount;
+        $followupsToday = $followupLeadsToday + $followupDealsToday;
+
+        $overdueLeadsCount = (clone $leadBase)
+            ->whereNotNull('date')
+            ->whereDate('date', '<', today())
+            ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+            ->whereNotIn('stage_id', $finalRejectedStageIds)
+            ->whereNotIn('stage_id', $finalAcceptedStageIds)
+            ->count();
+        $overdueLeadTasksFromTask = LeadTask::whereIn('lead_id', $permittedLeadIds)->whereDate('date', '<', today())->where('status', 0)->count();
+        $overdueDealTasks = DealTask::whereIn('deal_id', $permittedDealIds)->where('date', '<', today())->where('status', 0)->count();
+
+        $overdueLeadTasks = $overdueLeadsCount + $overdueLeadTasksFromTask;
+        $overdueTasks = $overdueLeadTasks + $overdueDealTasks;
+
+        $uncontactedLeads = (clone $leadBase)
+            ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+            ->whereDoesntHave('calls')
+            ->count();
+
+        $unassignedLeads = $canManageAnyLeads
+            ? Lead::where('created_by', $companyCreatorId)->where(fn($q) => $q->whereNull('user_id')->orWhere('user_id', 0))->count()
+            : 0;
+
+        $inactiveDeals = (clone $dealBase)
+            ->whereNotIn('status', ['Won', 'Loss'])
+            ->where('updated_at', '<', now()->subDays(14))
+            ->count();
+
+        $needsAttention = [
+            'followupLeadsToday' => $followupLeadsToday,
+            'overdueLeadTasks' => $overdueLeadTasks,
+            'overdueDealTasks' => $overdueDealTasks,
+            'followupDealsToday' => $followupDealsToday,
+            'uncontactedLeads' => $uncontactedLeads,
+            'unassignedLeads' => $unassignedLeads,
+            'inactiveDeals' => $inactiveDeals,
+        ];
+
+        // 7. Recent Deals & Leads
+        $recentDeals = (clone $dealBase)
+            ->with(['stage:id,name', 'creator:id,name'])
             ->orderBy('created_at', 'desc')
-            ->take(5)
+            ->take(6)
             ->get();
 
-        // Recent assigned leads
-        $recentLeads = Lead::whereIn('id', $assignedLeadIds)
+        $recentLeads = (clone $leadBase)
+            ->with(['stage:id,name', 'user:id,name'])
             ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get(['id', 'name', 'subject', 'created_at']);
+            ->take(6)
+            ->get();
 
-        // Calendar events from assigned tasks
-        $calendarEvents = [];
+        // 8. Follow-up Calendar Events (both from leads.date and tasks)
         $followupEvents = [];
 
-        // Upcoming follow-up tasks for assigned leads
-        $upcomingLeadTasks = LeadTask::whereIn('lead_id', $assignedLeadIds)
-            ->whereDate('date', '>=', today())
+        // A. Leads with scheduled follow-up dates
+        $scheduledLeads = (clone $leadBase)
+            ->whereNotNull('date')
+            ->where(fn($q) => $q->whereNull('is_converted')->orWhere('is_converted', 0))
+            ->whereNotIn('stage_id', $finalRejectedStageIds)
+            ->orderBy('date', 'asc')
+            ->get();
+
+        foreach ($scheduledLeads as $sl) {
+            $dStr = date('Y-m-d', strtotime($sl->date));
+            $isOverdue = strtotime($dStr) < strtotime(today()->toDateString());
+            $isToday = $dStr === today()->toDateString();
+            $color = $isOverdue ? '#f43f5e' : ($isToday ? '#6366f1' : '#10b981');
+            $statusLabel = $isOverdue ? 'Overdue' : ($isToday ? 'Today' : 'Upcoming');
+
+            $followupEvents[] = [
+                'id' => 'lead_f_' . $sl->id,
+                'title' => 'LEAD: ' . ($sl->subject ? $sl->subject : $sl->name),
+                'startDate' => $dStr,
+                'endDate' => $dStr,
+                'date' => $dStr,
+                'time' => $sl->date ? date('h:i A', strtotime($sl->date)) : '10:00 AM',
+                'color' => $color,
+                'status' => $statusLabel,
+                'type' => 'Lead Follow-up',
+                'subtitle' => $sl->name . ($sl->organization_type ? ' · ' . $sl->organization_type : ''),
+                'customer' => $sl->name,
+                'phone' => $sl->phone,
+            ];
+        }
+
+        // B. Lead Tasks
+        $upcomingLeadTasks = LeadTask::whereIn('lead_id', $permittedLeadIds)
+            ->with('lead')
             ->orderBy('date', 'asc')
             ->get();
         foreach ($upcomingLeadTasks as $lt) {
-            $dStr = $lt->date ? $lt->date->format('Y-m-d') : now()->format('Y-m-d');
+            $dStr = $lt->date ? (is_string($lt->date) ? date('Y-m-d', strtotime($lt->date)) : $lt->date->format('Y-m-d')) : now()->format('Y-m-d');
+            $isOverdue = strtotime($dStr) < strtotime(today()->toDateString()) && !$lt->status;
+            $isToday = $dStr === today()->toDateString();
+            $color = $isOverdue ? '#f43f5e' : ($lt->status ? '#10b981' : ($isToday ? '#6366f1' : '#3b82f6'));
+
             $followupEvents[] = [
-                'id' => 'lead_f_' . $lt->id,
-                'title' => 'LEAD: ' . $lt->name,
+                'id' => 'lead_task_f_' . $lt->id,
+                'title' => 'TASK: ' . $lt->name,
                 'startDate' => $dStr,
                 'endDate' => $dStr,
-                'time' => $lt->time ? (is_string($lt->time) ? $lt->time : $lt->time->format('H:i')) : '10:00',
-                'color' => '#10b981',
-                'type' => 'Lead Follow-up',
+                'date' => $dStr,
+                'time' => $lt->time ? (is_string($lt->time) ? $lt->time : $lt->time->format('h:i A')) : '10:00 AM',
+                'color' => $color,
+                'status' => $lt->status ? 'Completed' : ($isOverdue ? 'Overdue' : 'Pending'),
+                'type' => 'Lead Task',
                 'subtitle' => $lt->lead?->name ? $lt->lead->name : 'Lead Task',
+                'customer' => $lt->lead?->name,
             ];
         }
 
-        // Upcoming follow-up tasks for assigned deals
-        $upcomingDealTasks = DealTask::whereIn('deal_id', $assignedDealIds)
-            ->whereDate('date', '>=', today())
+        // C. Deal Tasks
+        $upcomingDealTasks = DealTask::whereIn('deal_id', $permittedDealIds)
+            ->with('deal')
             ->orderBy('date', 'asc')
             ->get();
         foreach ($upcomingDealTasks as $dt) {
-            $dStr = $dt->date ? $dt->date->format('Y-m-d') : now()->format('Y-m-d');
+            $dStr = $dt->date ? (is_string($dt->date) ? date('Y-m-d', strtotime($dt->date)) : $dt->date->format('Y-m-d')) : now()->format('Y-m-d');
+            $isOverdue = strtotime($dStr) < strtotime(today()->toDateString()) && !$dt->status;
+            $isToday = $dStr === today()->toDateString();
+            $color = $isOverdue ? '#f43f5e' : ($dt->status ? '#10b981' : ($isToday ? '#f59e0b' : '#8b5cf6'));
+
             $followupEvents[] = [
-                'id' => 'deal_f_' . $dt->id,
+                'id' => 'deal_task_f_' . $dt->id,
                 'title' => 'DEAL: ' . $dt->name,
                 'startDate' => $dStr,
                 'endDate' => $dStr,
-                'time' => $dt->time ? (is_string($dt->time) ? $dt->time : $dt->time->format('H:i')) : '11:00',
-                'color' => '#3b82f6',
-                'type' => 'Deal Follow-up',
+                'date' => $dStr,
+                'time' => $dt->time ? (is_string($dt->time) ? $dt->time : $dt->time->format('h:i A')) : '11:00 AM',
+                'color' => $color,
+                'status' => $dt->status ? 'Completed' : ($isOverdue ? 'Overdue' : 'Pending'),
+                'type' => 'Deal Task',
                 'subtitle' => $dt->deal?->name ? $dt->deal->name : 'Deal Task',
+                'customer' => $dt->deal?->name,
             ];
         }
 
-        // Deal tasks
-        $userDeals = UserDeal::where('user_id', $user->id)->with('deal.tasks')->get();
-        foreach ($userDeals as $userDeal) {
-            foreach ($userDeal->deal->tasks as $task) {
-                $calendarEvents[] = [
-                    'id' => 'deal_' . $task->id,
-                    'title' => $task->name,
-                    'startDate' => $task->date->format('Y-m-d'),
-                    'endDate' => $task->date->format('Y-m-d'),
-                    'time' => $task->time ? $task->time->format('H:i') : '09:00',
-                    'status' => $task->status ? 'completed' : 'pending',
-                    'name' => $userDeal->deal->name,
-                    'color' => $task->status ? '#10b981' : '#f59e0b',
-                    'type' => 'Deal Task',
-                    'subtitle' => $userDeal->deal->name,
-                ];
-            }
+        // 9. Dedicated Tasks Calendar Events
+        $calendarEvents = [];
+        foreach ($upcomingLeadTasks as $task) {
+            $dStr = $task->date ? (is_string($task->date) ? date('Y-m-d', strtotime($task->date)) : $task->date->format('Y-m-d')) : now()->format('Y-m-d');
+            $calendarEvents[] = [
+                'id' => 'lt_' . $task->id,
+                'title' => $task->name,
+                'startDate' => $dStr,
+                'endDate' => $dStr,
+                'date' => $dStr,
+                'time' => $task->time ? (is_string($task->time) ? $task->time : $task->time->format('h:i A')) : '09:00 AM',
+                'status' => $task->status ? 'completed' : 'pending',
+                'subtitle' => 'Lead: ' . ($task->lead?->name ?? 'N/A'),
+                'color' => $task->status ? '#10b981' : '#3b82f6',
+                'type' => 'Lead Task',
+            ];
         }
-
-        // Lead tasks
-        $userLeads = UserLead::where('user_id', $user->id)->with('lead.tasks')->get();
-        foreach ($userLeads as $userLead) {
-            foreach ($userLead->lead->tasks as $task) {
-                $calendarEvents[] = [
-                    'id' => 'lead_' . $task->id,
-                    'title' => $task->name,
-                    'startDate' => $task->date->format('Y-m-d'),
-                    'endDate' => $task->date->format('Y-m-d'),
-                    'time' => $task->time ? $task->time->format('H:i') : '09:00',
-                    'status' => $task->status ? 'completed' : 'pending',
-                    'name' => $userLead->lead->name,
-                    'color' => $task->status ? '#10b981' : '#3b82f6',
-                    'type' => 'Lead Task',
-                    'subtitle' => $userLead->lead->name,
-                ];
-            }
+        foreach ($upcomingDealTasks as $task) {
+            $dStr = $task->date ? (is_string($task->date) ? date('Y-m-d', strtotime($task->date)) : $task->date->format('Y-m-d')) : now()->format('Y-m-d');
+            $calendarEvents[] = [
+                'id' => 'dt_' . $task->id,
+                'title' => $task->name,
+                'startDate' => $dStr,
+                'endDate' => $dStr,
+                'date' => $dStr,
+                'time' => $task->time ? (is_string($task->time) ? $task->time : $task->time->format('h:i A')) : '09:00 AM',
+                'status' => $task->status ? 'completed' : 'pending',
+                'subtitle' => 'Deal: ' . ($task->deal?->name ?? 'N/A'),
+                'color' => $task->status ? '#10b981' : '#f59e0b',
+                'type' => 'Deal Task',
+            ];
         }
-
-        // Total amount from assigned deals
-        $totalAmount = Deal::whereIn('id', $assignedDealIds)->sum('price');
-
-        // Task status chart
-        $taskStatusChart = [
-            ['name' => 'Completed', 'value' => $completedTasks],
-            ['name' => 'Pending', 'value' => $pendingTasks],
-        ];
 
         return Inertia::render('Lead/Dashboard/UserDashboard', [
             'stats' => [
                 'todayLeads' => $todayLeads,
                 'yesterdayLeads' => $yesterdayLeads,
+                'thisMonthLeads' => $thisMonthLeads,
+                'prevMonthLeads' => $prevMonthLeads,
                 'avgDailyLeads' => $avgDailyLeads,
                 'monthlyLeads' => $monthlyLeads,
                 'totalLeads' => $totalLeads,
 
+                'todayDeals' => $todayDeals,
+                'yesterdayDeals' => $yesterdayDeals,
+                'thisMonthDeals' => $thisMonthDeals,
+                'prevMonthDeals' => $prevMonthDeals,
+
                 'convertedDeals' => $convertedDeals,
                 'activeDeals' => $activeDeals,
+                'openDealValue' => $openDealValue,
                 'wonDeals' => $wonDeals,
+                'wonDealAmount' => $wonDealAmount,
+                'wonDealsThisMonth' => $wonDealsThisMonth,
                 'lostDeals' => $lostDeals,
+                'totalAmount' => $totalAmount,
 
                 'todayCalls' => $todayCalls,
                 'yesterdayCalls' => $yesterdayCalls,
                 'monthlyCalls' => $monthlyCalls,
                 'totalCalls' => $totalCalls,
+
                 'completedTasks' => $completedTasks,
                 'pendingTasks' => $pendingTasks,
-                'totalAmount' => $totalAmount,
+                'followupsToday' => $followupsToday,
+                'followupLeadsToday' => $followupLeadsToday,
+                'followupDealsToday' => $followupDealsToday,
+                'overdueTasks' => $overdueTasks,
+                'overdueLeadTasks' => $overdueLeadTasks,
+            ],
+            'needsAttention' => $needsAttention,
+            'permissionScope' => [
+                'canManageAnyLeads' => $canManageAnyLeads,
+                'canManageAnyDeals' => $canManageAnyDeals,
+                'scopeLabel' => ($canManageAnyLeads && $canManageAnyDeals)
+                    ? 'All Company Records'
+                    : (($canManageAnyLeads || $canManageAnyDeals) ? 'Partial Company & Own Records' : 'My Assigned Portfolio'),
             ],
             'recentDeals' => $recentDeals,
             'recentLeads' => $recentLeads,
             'calendarEvents' => $calendarEvents,
             'followupEvents' => $followupEvents,
-            'taskStatusChart' => $taskStatusChart,
             'message' => __('User Dashboard - View your assigned leads and deals.'),
+        ]);
+    }
+
+    /**
+     * Lazy loading endpoint for Top Sellers in Product Category Leaderboard
+     */
+    public function getCategoryLeaderboardData(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $period = $request->input('period', 'this_month');
+
+        if ($period === 'today') {
+            $start = today()->startOfDay();
+            $end = today()->endOfDay();
+        } elseif ($period === 'yesterday') {
+            $start = yesterday()->startOfDay();
+            $end = yesterday()->endOfDay();
+        } elseif ($period === 'prev_month' || $period === 'last_month') {
+            $start = now()->subMonth()->startOfMonth();
+            $end = now()->subMonth()->endOfMonth();
+        } elseif ($period === 'custom' && $startDate && $endDate) {
+            $start = \Carbon\Carbon::parse($startDate)->startOfDay();
+            $end = \Carbon\Carbon::parse($endDate)->endOfDay();
+        } else {
+            $start = now()->startOfMonth();
+            $end = now()->endOfMonth();
+        }
+
+        $companyCreatorId = creatorId();
+
+        $sellerUsersQuery = User::where(function ($q) use ($companyCreatorId) {
+            $q->where('created_by', $companyCreatorId)->orWhere('id', $companyCreatorId);
+        })
+            ->whereNotIn('type', ['client', 'vendor', 'Client', 'Vendor', 'superadmin', 'Super Admin', 'company', 'Company', 'hr', 'HR']);
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'is_disable')) {
+            $sellerUsersQuery->where(function ($sq) {
+                $sq->whereNull('is_disable')->orWhere('is_disable', '!=', 1);
+            });
+        }
+
+        $sellerUsersList = $sellerUsersQuery->get(['id', 'name', 'avatar'])->toArray();
+        $sellerUsersMap = collect($sellerUsersList)->keyBy('id');
+
+        $wonDealsCategory = Deal::where('created_by', $companyCreatorId)
+            ->where('status', 'Won')
+            ->whereBetween('updated_at', [$start, $end])
+            ->with(['users'])
+            ->get();
+        if ($wonDealsCategory->isEmpty() && !$request->has('period')) {
+            $wonDealsCategory = Deal::where('created_by', $companyCreatorId)
+                ->where('status', 'Won')
+                ->with(['users'])
+                ->get();
+        }
+
+        $productItemsMap = [];
+        $productNamesMap = [];
+        if (class_exists(\Automas\ProductService\Models\ProductServiceItem::class)) {
+            $productItems = \Automas\ProductService\Models\ProductServiceItem::where('created_by', $companyCreatorId)
+                ->with('category')
+                ->get();
+            $productItemsMap = $productItems->keyBy('id');
+            $productNamesMap = $productItems->keyBy(function ($item) {
+                return strtolower(trim($item->name));
+            });
+        }
+
+        $matrixSellers = [];
+        $categoryTotals = [];
+        $distinctCategories = [];
+        $totalProductsSold = 0;
+        $totalSalesValue = 0;
+        $activeSellersSet = [];
+        $categorySellersMap = [];
+
+        foreach ($wonDealsCategory as $wDeal) {
+            $dealPrice = (float) $wDeal->price;
+            $totalSalesValue += $dealPrice;
+
+            $dealUsers = $wDeal->users->count() > 0 ? $wDeal->users : collect([$sellerUsersMap[$wDeal->created_by] ?? User::find($wDeal->created_by)]);
+            $dealUsers = $dealUsers->filter();
+
+            $rawProducts = $wDeal->products;
+            if (is_numeric($rawProducts)) {
+                $pList = [(int) $rawProducts];
+            } elseif (is_string($rawProducts)) {
+                $decoded = json_decode($rawProducts, true);
+                if (is_array($decoded)) {
+                    $pList = $decoded;
+                } elseif (is_numeric($decoded)) {
+                    $pList = [(int) $decoded];
+                } else {
+                    $pList = array_filter(array_map('trim', explode(',', $rawProducts)));
+                }
+            } elseif (is_array($rawProducts)) {
+                $pList = $rawProducts;
+            } else {
+                $pList = [];
+            }
+            $pList = array_values(array_filter((array) $pList));
+
+            if (empty($pList)) {
+                $pCategories = [['id' => 0, 'name' => 'General', 'color' => '#6366f1', 'prodName' => 'General Item']];
+            } else {
+                $pCategories = [];
+                foreach ($pList as $pId) {
+                    $pObj = is_numeric($pId) ? ($productItemsMap[$pId] ?? null) : null;
+                    if (!$pObj && is_string($pId)) {
+                        $pObj = $productNamesMap[strtolower(trim($pId))] ?? null;
+                    }
+                    $cId = $pObj ? ($pObj->category_id ?? 0) : 0;
+                    $cName = ($pObj && $pObj->category) ? $pObj->category->name : 'General';
+                    $cColor = ($pObj && $pObj->category && $pObj->category->color) ? $pObj->category->color : '#6366f1';
+                    $prodName = $pObj ? $pObj->name : (is_string($pId) && !is_numeric($pId) ? $pId : 'Product #' . $pId);
+                    $pCategories[] = ['id' => $cId, 'name' => $cName, 'color' => $cColor, 'prodName' => $prodName];
+                }
+            }
+
+            $prodCount = max(1, count($pCategories));
+            $amountPerProd = $dealPrice / $prodCount;
+
+            foreach ($dealUsers as $u) {
+                if (!$u) continue;
+                $activeSellersSet[$u->id] = true;
+
+                if (!isset($matrixSellers[$u->id])) {
+                    $nameParts = explode(' ', trim($u->name));
+                    $initials = '';
+                    foreach ($nameParts as $np) {
+                        if (!empty($np)) $initials .= strtoupper($np[0]);
+                    }
+                    $matrixSellers[$u->id] = [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'avatar' => substr($initials, 0, 2) ?: 'U',
+                        'avatarImage' => $u->avatar,
+                        'values' => [],
+                        'amounts' => [],
+                        'totalAmount' => 0,
+                        'totalUnits' => 0,
+                    ];
+                }
+
+                foreach ($pCategories as $catInfo) {
+                    $cName = $catInfo['name'];
+                    $distinctCategories[$cName] = true;
+                    $totalProductsSold += 1;
+
+                    if (!isset($matrixSellers[$u->id]['values'][$cName])) {
+                        $matrixSellers[$u->id]['values'][$cName] = 0;
+                        $matrixSellers[$u->id]['amounts'][$cName] = 0;
+                    }
+                    $matrixSellers[$u->id]['values'][$cName] += 1;
+                    $matrixSellers[$u->id]['amounts'][$cName] += $amountPerProd;
+                    $matrixSellers[$u->id]['totalUnits'] += 1;
+                    $matrixSellers[$u->id]['totalAmount'] += $amountPerProd;
+
+                    if (!isset($categoryTotals[$cName])) {
+                        $categoryTotals[$cName] = [
+                            'totalAmount' => 0,
+                            'totalUnits' => 0,
+                            'sellers' => [],
+                        ];
+                    }
+                    $categoryTotals[$cName]['totalAmount'] += $amountPerProd;
+                    $categoryTotals[$cName]['totalUnits'] += 1;
+
+                    if (!isset($categoryTotals[$cName]['sellers'][$u->id])) {
+                        $categoryTotals[$cName]['sellers'][$u->id] = [
+                            'name' => $u->name,
+                            'units' => 0,
+                            'amount' => 0,
+                        ];
+                    }
+                    $categoryTotals[$cName]['sellers'][$u->id]['units'] += 1;
+                    $categoryTotals[$cName]['sellers'][$u->id]['amount'] += $amountPerProd;
+
+                    $key = $u->id . '_' . $catInfo['id'] . '_' . $cName;
+                    if (!isset($categorySellersMap[$key])) {
+                        $categorySellersMap[$key] = [
+                            'userId' => $u->id,
+                            'userName' => $u->name,
+                            'userAvatar' => $u->avatar,
+                            'categoryId' => $catInfo['id'],
+                            'categoryName' => $cName,
+                            'categoryColor' => $catInfo['color'],
+                            'productName' => $catInfo['prodName'],
+                            'dealsCount' => 0,
+                            'totalAmount' => 0,
+                        ];
+                    }
+                    $categorySellersMap[$key]['dealsCount'] += 1;
+                    $categorySellersMap[$key]['totalAmount'] += $amountPerProd;
+                }
+            }
+        }
+
+        $sellersList = array_values($matrixSellers);
+        usort($sellersList, fn($a, $b) => $b['totalAmount'] <=> $a['totalAmount'] ?: $b['totalUnits'] <=> $a['totalUnits']);
+
+        $badgeColors = ['bg-amber-400 text-white', 'bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200', 'bg-amber-600 text-white'];
+        $avatarColors = ['bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300', 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-300', 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300', 'bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-300', 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'];
+
+        foreach ($sellersList as $idx => &$sRow) {
+            $sRow['rank'] = $idx + 1;
+            $sRow['badgeColor'] = $badgeColors[$idx] ?? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
+            $sRow['avatarColor'] = $avatarColors[$idx % count($avatarColors)];
+        }
+
+        $categoriesList = array_keys($distinctCategories);
+        if (empty($categoriesList) && class_exists(\Automas\ProductService\Models\ProductServiceCategory::class)) {
+            $categoriesList = \Automas\ProductService\Models\ProductServiceCategory::where('created_by', creatorId())->pluck('name')->toArray();
+        }
+
+        $categoryLeadersList = [];
+        foreach ($categoryTotals as $catName => $cData) {
+            $sMap = array_values($cData['sellers']);
+            usort($sMap, fn($a, $b) => $b['units'] <=> $a['units'] ?: $b['amount'] <=> $a['amount']);
+            $topLeader = $sMap[0] ?? null;
+
+            if ($topLeader) {
+                $categoryLeadersList[] = [
+                    'category' => $catName,
+                    'leader' => $topLeader['name'],
+                    'units' => $topLeader['units'] . ' units',
+                    'amount' => (float) $topLeader['amount'],
+                ];
+            }
+        }
+
+        $categoryLeaderboard = [
+            'categories' => $categoriesList,
+            'sellers' => $sellersList,
+            'leaders' => $categoryLeadersList,
+            'summary' => [
+                'totalProductsSold' => $totalProductsSold,
+                'totalSalesValue' => (float) $totalSalesValue,
+                'activeSellersCount' => count($activeSellersSet),
+                'productCategoriesCount' => count($categoriesList),
+            ],
+        ];
+
+        $categorySellers = array_values($categorySellersMap);
+        usort($categorySellers, fn($a, $b) => $b['dealsCount'] <=> $a['dealsCount'] ?: $b['totalAmount'] <=> $a['totalAmount']);
+
+        return response()->json([
+            'categoryLeaderboard' => $categoryLeaderboard,
+            'categorySellers' => $categorySellers,
         ]);
     }
 }

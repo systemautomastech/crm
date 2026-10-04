@@ -78,18 +78,27 @@ export default function Edit({ user, onSuccess, roles = {} }: EditUserProps) {
                 {!isSuperAdmin && Object.keys(roles).length > 0 && (
                     <div>
                         <Label htmlFor="edit_type">{t('Role')}</Label>
-                        <Select value={data.type || ''} onValueChange={(value) => setData('type', value)}>
-                            <SelectTrigger id="edit_type">
-                                <SelectValue placeholder={t('Select Role')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.entries(roles).map(([id, label]) => (
-                                    <SelectItem key={id} value={String(id)}>
-                                        {label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {Object.keys(roles).length === 1 ? (
+                            <Input
+                                id="edit_type"
+                                value={roles[Object.keys(roles)[0]]}
+                                disabled
+                                className="border-input bg-muted/30 text-foreground opacity-100 disabled:opacity-100 cursor-not-allowed"
+                            />
+                        ) : (
+                            <Select value={data.type || ''} onValueChange={(value) => setData('type', value)}>
+                                <SelectTrigger id="edit_type">
+                                    <SelectValue placeholder={t('Select Role')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(roles).map(([id, label]) => (
+                                        <SelectItem key={id} value={String(id)}>
+                                            {label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                         <InputError message={errors.type} />
                     </div>
                 )}

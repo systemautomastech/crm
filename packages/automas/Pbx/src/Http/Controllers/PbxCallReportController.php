@@ -15,7 +15,8 @@ class PbxCallReportController extends Controller
 {
     public function __construct(
         protected PbxCallReportService $callReportService
-    ) {}
+    ) {
+    }
 
     public function index(Request $request)
     {
@@ -146,7 +147,7 @@ class PbxCallReportController extends Controller
         if ($selectedExtension !== '') {
             $extensionAllowed = $extensions->contains(
                 fn($extension) =>
-                (string) $extension->extension ===
+                    (string) $extension->extension ===
                     $selectedExtension
             );
 
@@ -244,10 +245,10 @@ class PbxCallReportController extends Controller
                     'to' => $to,
 
                     'direction' =>
-                    $direction ?: null,
+                        $direction ?: null,
 
                     'status' =>
-                    $status ?: null,
+                        $status ?: null,
 
                     'page' => $page,
                     'per_page' => $perPage,
@@ -262,7 +263,7 @@ class PbxCallReportController extends Controller
 
         $extensionMap = $extensions->keyBy(
             fn($extension) =>
-            (string) $extension->extension
+                (string) $extension->extension
         );
 
         /*
@@ -275,9 +276,7 @@ class PbxCallReportController extends Controller
             $result['data'] ?? []
         )
             ->map(
-                function (array $call) use (
-                    $extensionMap
-                ) {
+                function (array $call) use ($extensionMap) {
                     $extensionNumber =
                         (string) (
                             $call['extension']
@@ -293,15 +292,15 @@ class PbxCallReportController extends Controller
                         ...$call,
 
                         'extension' =>
-                        $extensionNumber,
+                            $extensionNumber,
 
                         'user_id' =>
-                        $extension?->user_id,
+                            $extension?->user_id,
 
                         'user_name' =>
-                        $extension
-                            ?->user
-                            ?->name,
+                            $extension
+                                ?->user
+                                    ?->name,
 
                         'recording_url' => null,
                     ];
@@ -353,7 +352,7 @@ class PbxCallReportController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | WorkDo-Compatible Paginator
+        | Automas-Compatible Paginator
         |--------------------------------------------------------------------------
         |
         | We provide both Laravel-style top-level pagination properties and
@@ -410,59 +409,59 @@ class PbxCallReportController extends Controller
                 'calls' => $calls,
 
                 'extensions' =>
-                $extensions
-                    ->map(
-                        fn($extension) => [
-                            'id' =>
-                            $extension->id,
+                    $extensions
+                        ->map(
+                            fn($extension) => [
+                                'id' =>
+                                    $extension->id,
 
-                            'extension' =>
-                            (string)
-                            $extension->extension,
+                                'extension' =>
+                                    (string) 
+                                    $extension->extension,
 
-                            'user_id' =>
-                            $extension->user_id,
+                                'user_id' =>
+                                    $extension->user_id,
 
-                            'user_name' =>
-                            $extension
-                                ?->user
-                                ?->name,
-                        ]
-                    )
-                    ->values(),
+                                'user_name' =>
+                                    $extension
+                                        ?->user
+                                            ?->name,
+                            ]
+                        )
+                        ->values(),
 
                 'filters' => [
                     'search' =>
-                    $search,
+                        $search,
 
                     'extension' =>
-                    $selectedExtension,
+                        $selectedExtension,
 
                     'call_direction' =>
-                    $direction,
+                        $direction,
 
                     'status' =>
-                    $status,
+                        $status,
 
                     'period' =>
-                    $period,
+                        $period,
 
                     'from' =>
-                    $from,
+                        $from,
 
                     'to' =>
-                    $to,
+                        $to,
 
                     'date_range' =>
-                    $dateRange,
+                        $dateRange,
                 ],
 
                 'callReportPermissions' => [
                     'view_all' =>
-                    $canViewAll,
+                        $canViewAll,
 
                     'view_own' =>
-                    $canViewOwn,
+                        $canViewOwn,
                 ],
             ]
         );
@@ -679,18 +678,18 @@ class PbxCallReportController extends Controller
 
         $extensionQuery =
             PbxExtension::query()
-            ->where(
-                'created_by',
-                creatorId()
-            )
-            ->where(
-                'extension',
-                $validated['extension']
-            )
-            ->where(
-                'is_active',
-                true
-            );
+                ->where(
+                    'created_by',
+                    creatorId()
+                )
+                ->where(
+                    'extension',
+                    $validated['extension']
+                )
+                ->where(
+                    'is_active',
+                    true
+                );
 
         if (!$canViewAll) {
             $extensionQuery->where(
@@ -701,7 +700,7 @@ class PbxCallReportController extends Controller
 
         $extension =
             $extensionQuery
-            ->firstOrFail();
+                ->firstOrFail();
 
         /*
         |--------------------------------------------------------------------------
@@ -737,8 +736,8 @@ class PbxCallReportController extends Controller
 
         $response = Http::withHeaders([
             'X-API-Key' =>
-            $setting
-                ->call_report_api_key,
+                $setting
+                    ->call_report_api_key,
 
             'Accept' => '*/*',
         ])
@@ -748,18 +747,18 @@ class PbxCallReportController extends Controller
                 $url,
                 [
                     'linkedid' =>
-                    $validated['linkedid'],
+                        $validated['linkedid'],
 
                     'extension' =>
-                    $extension->extension,
+                        $extension->extension,
                 ]
             );
 
         if ($response->failed()) {
             abort(
                 $response->status() === 404
-                    ? 404
-                    : 502,
+                ? 404
+                : 502,
                 'Recording could not be loaded.'
             );
         }
@@ -778,23 +777,23 @@ class PbxCallReportController extends Controller
             200,
             [
                 'Content-Type' =>
-                $contentType,
+                    $contentType,
 
                 'Content-Length' =>
-                strlen($body),
+                    strlen($body),
 
                 'Content-Disposition' =>
-                'inline',
+                    'inline',
 
                 'Cache-Control' =>
-                'private, no-store, no-cache, must-revalidate',
+                    'private, no-store, no-cache, must-revalidate',
             ]
         );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | WorkDo Paginator Payload
+    | Automas Paginator Payload
     |--------------------------------------------------------------------------
     */
 
@@ -822,7 +821,7 @@ class PbxCallReportController extends Controller
 
         $links[] = [
             'url' =>
-            $page > 1
+                $page > 1
                 ? $this->pageUrl(
                     $request,
                     $page - 1,
@@ -852,16 +851,16 @@ class PbxCallReportController extends Controller
         if ($startPage > 1) {
             $links[] = [
                 'url' =>
-                $this->pageUrl(
-                    $request,
-                    1,
-                    $activeFilters
-                ),
+                    $this->pageUrl(
+                        $request,
+                        1,
+                        $activeFilters
+                    ),
 
                 'label' => '1',
 
                 'active' =>
-                $page === 1,
+                    $page === 1,
             ];
 
             if ($startPage > 2) {
@@ -880,17 +879,17 @@ class PbxCallReportController extends Controller
         ) {
             $links[] = [
                 'url' =>
-                $this->pageUrl(
-                    $request,
-                    $number,
-                    $activeFilters
-                ),
+                    $this->pageUrl(
+                        $request,
+                        $number,
+                        $activeFilters
+                    ),
 
                 'label' =>
-                (string) $number,
+                    (string) $number,
 
                 'active' =>
-                $number === $page,
+                    $number === $page,
             ];
         }
 
@@ -908,23 +907,23 @@ class PbxCallReportController extends Controller
 
             $links[] = [
                 'url' =>
-                $this->pageUrl(
-                    $request,
-                    $lastPage,
-                    $activeFilters
-                ),
+                    $this->pageUrl(
+                        $request,
+                        $lastPage,
+                        $activeFilters
+                    ),
 
                 'label' =>
-                (string) $lastPage,
+                    (string) $lastPage,
 
                 'active' =>
-                $page === $lastPage,
+                    $page === $lastPage,
             ];
         }
 
         $links[] = [
             'url' =>
-            $page < $lastPage
+                $page < $lastPage
                 ? $this->pageUrl(
                     $request,
                     $page + 1,
@@ -941,31 +940,31 @@ class PbxCallReportController extends Controller
             'data' => $data,
 
             'current_page' =>
-            $page,
+                $page,
 
             'first_page_url' =>
-            $this->pageUrl(
-                $request,
-                1,
-                $activeFilters
-            ),
+                $this->pageUrl(
+                    $request,
+                    1,
+                    $activeFilters
+                ),
 
             'from' => $from,
 
             'last_page' =>
-            $lastPage,
+                $lastPage,
 
             'last_page_url' =>
-            $this->pageUrl(
-                $request,
-                $lastPage,
-                $activeFilters
-            ),
+                $this->pageUrl(
+                    $request,
+                    $lastPage,
+                    $activeFilters
+                ),
 
             'links' => $links,
 
             'next_page_url' =>
-            $page < $lastPage
+                $page < $lastPage
                 ? $this->pageUrl(
                     $request,
                     $page + 1,
@@ -974,13 +973,13 @@ class PbxCallReportController extends Controller
                 : null,
 
             'path' =>
-            $request->url(),
+                $request->url(),
 
             'per_page' =>
-            $perPage,
+                $perPage,
 
             'prev_page_url' =>
-            $page > 1
+                $page > 1
                 ? $this->pageUrl(
                     $request,
                     $page - 1,
@@ -998,28 +997,28 @@ class PbxCallReportController extends Controller
              */
             'meta' => [
                 'current_page' =>
-                $page,
+                    $page,
 
                 'from' =>
-                $from,
+                    $from,
 
                 'last_page' =>
-                $lastPage,
+                    $lastPage,
 
                 'links' =>
-                $links,
+                    $links,
 
                 'path' =>
-                $request->url(),
+                    $request->url(),
 
                 'per_page' =>
-                $perPage,
+                    $perPage,
 
                 'to' =>
-                $to,
+                    $to,
 
                 'total' =>
-                $total,
+                    $total,
             ],
         ];
     }

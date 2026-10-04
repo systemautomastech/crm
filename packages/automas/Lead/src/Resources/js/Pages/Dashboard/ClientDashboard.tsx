@@ -34,40 +34,40 @@ export default function ClientDashboard({ message, stats, recentDeals, calendarE
             <div className="space-y-6">
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-md transition-shadow">
+                    <Card className="bg-blue-50/70 dark:bg-blue-950/40 border-blue-200/70 dark:border-blue-900/50 hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-sm font-medium text-blue-700">{t('Total Deals')}</CardTitle>
-                            <Rocket className="h-5 w-5 text-blue-600" />
+                            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">{t('Total Deals')}</CardTitle>
+                            <Rocket className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-blue-800">{stats?.total_deals || 0}</div>
+                            <div className="text-2xl font-bold text-blue-800 dark:text-white">{stats?.total_deals || 0}</div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-md transition-shadow">
+                    <Card className="bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200/70 dark:border-emerald-900/50 hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-sm font-medium text-green-700">{t('Active Deals')}</CardTitle>
-                            <Target className="h-5 w-5 text-green-600" />
+                            <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t('Active Deals')}</CardTitle>
+                            <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-800">{stats?.active_deals || 0}</div>
+                            <div className="text-2xl font-bold text-emerald-800 dark:text-white">{stats?.active_deals || 0}</div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-md transition-shadow">
+                    <Card className="bg-purple-50/70 dark:bg-purple-950/40 border-purple-200/70 dark:border-purple-900/50 hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-sm font-medium text-purple-700">{t('Won Deals')}</CardTitle>
-                            <TrendingUp className="h-5 w-5 text-purple-600" />
+                            <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-400">{t('Won Deals')}</CardTitle>
+                            <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-purple-800">{stats?.won_deals || 0}</div>
+                            <div className="text-2xl font-bold text-purple-800 dark:text-white">{stats?.won_deals || 0}</div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-md transition-shadow">
+                    <Card className="bg-amber-50/70 dark:bg-amber-950/40 border-amber-200/70 dark:border-amber-900/50 hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-sm font-medium text-orange-700">{t('Total Value')}</CardTitle>
-                            <DollarSign className="h-5 w-5 text-orange-600" />
+                            <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('Total Value')}</CardTitle>
+                            <DollarSign className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-orange-800">{formatCurrency(stats?.total_value || 0)}</div>
+                            <div className="text-2xl font-bold text-amber-800 dark:text-white">{formatCurrency(stats?.total_value || 0)}</div>
                         </CardContent>
                     </Card>
                 </div>

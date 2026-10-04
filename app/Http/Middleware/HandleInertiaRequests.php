@@ -59,7 +59,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user()
                     ? array_merge(
-                        $request->user()->loadMissing('employee')->toArray(),
+                        $request->user()->toArray(),
                         [
                             'permissions' => $this->getUserPermissions($request->user()),
                             'roles' => $this->getUserRoles($request->user()),

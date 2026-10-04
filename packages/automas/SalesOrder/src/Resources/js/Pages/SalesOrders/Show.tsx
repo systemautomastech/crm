@@ -77,6 +77,7 @@ export default function Show() {
     const [cancelOrderDialogOpen, setCancelOrderDialogOpen] = useState(false);
     const [releaseOrderDialogOpen, setReleaseOrderDialogOpen] = useState(false);
     const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+    const [isConverting, setIsConverting] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string>('');
     const [reassignType, setReassignType] = useState<'group' | 'user'>('group');
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -122,7 +123,17 @@ export default function Show() {
 
     const handleConvertInvoice = () => {
         router.post(route('salesorder.orders.convert', salesOrder.id), {}, {
-            onSuccess: () => setConvertDialogOpen(false),
+            onStart: () => setIsConverting(true),
+            onSuccess: () => {
+                setIsConverting(false);
+                setConvertDialogOpen(false);
+            },
+            onError: () => {
+                setIsConverting(false);
+            },
+            onFinish: () => {
+                setIsConverting(false);
+            }
         });
     };
 
@@ -845,9 +856,10 @@ export default function Show() {
                 onOpenChange={setConvertDialogOpen}
                 title={t('Convert to Sales Invoice')}
                 message={t('Are you sure you want to convert sales order :num to a sales invoice?', { num: salesOrder.order_number || `#${salesOrder.id}` })}
-                confirmText={t('Yes, Convert')}
+                confirmText={isConverting ? t('Converting...') : t('Yes, Convert')}
                 cancelText={t('Cancel')}
                 onConfirm={handleConvertInvoice}
+                isLoading={isConverting}
             />
         </AuthenticatedLayout>
     );

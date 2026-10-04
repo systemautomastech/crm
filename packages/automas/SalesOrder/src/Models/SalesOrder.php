@@ -37,6 +37,7 @@ class SalesOrder extends Model
         'order_number',
         'name',
         'quotation_id',
+        'proposal_id',
         'status',
         'delivery_status',
         'customer_id',

@@ -4,16 +4,19 @@ namespace App\Services;
 
 use App\Models\EmailTemplate;
 use App\Models\ProposalDefaultPage;
+use App\Models\SalesInvoice;
+use App\Models\SalesInvoiceItem;
+use App\Models\SalesInvoiceItemTax;
 use App\Models\SalesProposal;
 use App\Models\SalesProposalContent;
 use App\Models\SalesProposalItem;
 use App\Models\SalesProposalItemTax;
 use App\Models\User;
-use Automas\Quotation\Services\QuotationServices;
-use Automas\Quotation\Models\QuotationDefaultPage;
-use Automas\Quotation\Models\SalesQuotation;
-use Automas\Quotation\Models\SalesQuotationItem;
-use Automas\Quotation\Models\SalesQuotationItemTax;
+use App\Models\UserGroup;
+use Automas\ProductService\Models\ProductServiceItem;
+use Automas\SalesOrder\Models\SalesOrder;
+use Automas\SalesOrder\Models\SalesOrderItem;
+use Automas\SalesOrder\Models\SalesOrderItemTax;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +25,6 @@ use Illuminate\Support\Facades\Schema;
 class ProposalService
 {
     public function __construct(
-        protected QuotationServices $quotationService,
         protected WarehouseService $warehouseService
     ) {
     }
@@ -388,149 +390,414 @@ class ProposalService
         });
     }
 
-    public function convertProposalToQuotation(SalesProposal $salesProposal, ?string $customSubject = null): SalesQuotation
+    public function convertProposalToSalesOrder(SalesProposal $salesProposal, ?array $customItems = null, ?int $warehouseId = null, array $options = []): SalesOrder
     {
-        return DB::transaction(function () use ($salesProposal, $customSubject) {
-            $isNew = empty($salesProposal->customer_id) && (!empty($salesProposal->customer_name) || !empty($salesProposal->customer_email));
-            $customerType = $isNew ? 'new' : 'existing';
+        return DB::transaction(function () use ($salesProposal, $customItems, $warehouseId, $options) {
+            $targetWarehouseId = $warehouseId ?: $salesProposal->warehouse_id;
 
-            $quotation = new SalesQuotation();
-            $quotation->parent_quotation_id = $salesProposal->id;
-            $quotation->subject = !empty($customSubject) ? $customSubject : $salesProposal->subject;
-            $quotation->customer_type = $customerType;
-            $quotation->customer_id = $salesProposal->customer_id;
-            $quotation->customer_name = $salesProposal->customer_name;
-            $quotation->customer_email = $salesProposal->customer_email;
-            $quotation->customer_phone = $salesProposal->customer_phone;
-            $quotation->customer_address = $salesProposal->customer_address;
-            $quotation->warehouse_id = $salesProposal->warehouse_id;
-            $quotation->quotation_date = now()->format('Y-m-d');
-            $quotation->due_date = $salesProposal->due_date ? $salesProposal->due_date->format('Y-m-d') : null;
-            $quotation->is_recurring = (bool) ($salesProposal->is_recurring ?? false);
-            $quotation->is_prepaid = (bool) ($salesProposal->is_prepaid ?? false);
-            $quotation->is_tax_enabled = (bool) ($salesProposal->is_tax_enabled ?? true);
-            $quotation->otc_discount_type = $salesProposal->otc_discount_type ?? 'percentage';
-            $quotation->otc_discount_value = (float) ($salesProposal->otc_discount_value ?? 0);
-            $quotation->mrc_discount_type = $salesProposal->mrc_discount_type ?? 'percentage';
-            $quotation->mrc_discount_value = (float) ($salesProposal->mrc_discount_value ?? 0);
-            $quotation->payment_terms = $salesProposal->payment_terms;
-            $quotation->notes = $salesProposal->notes;
-            $quotation->subtotal = $salesProposal->subtotal ?? 0;
-            $quotation->tax_amount = $salesProposal->tax_amount ?? 0;
-            $quotation->discount_amount = $salesProposal->discount_amount ?? 0;
-            $quotation->total_amount = $salesProposal->total_amount ?? 0;
-            $quotation->status = 'draft';
-            $quotation->creator_id = Auth::id();
-            $quotation->created_by = creatorId();
-            $quotation->save();
+            // Handle Customer resolution (existing or new)
+            $customerId = $salesProposal->customer_id;
+            $billingAddress = $salesProposal->customer_address;
+            $shippingAddress = $salesProposal->customer_address;
 
-            foreach ($salesProposal->items as $item) {
-                $quotationItem = new SalesQuotationItem();
-                $quotationItem->quotation_id = $quotation->id;
-                $quotationItem->product_id = $item->product_id;
-                $quotationItem->section = $item->section ?? 'general';
-                $quotationItem->item_type = $item->product_type ?? 'product';
-                $quotationItem->description = $item->description;
-                $quotationItem->quantity = $item->quantity ?? 1;
-                $quotationItem->unit_price = $item->unit_price ?? 0;
-                $quotationItem->discount_percentage = $item->discount_percentage ?? 0;
-                $quotationItem->discount_amount = $item->discount_amount ?? 0;
-                $quotationItem->tax_percentage = $item->tax_percentage ?? 0;
-                $quotationItem->tax_amount = $item->tax_amount ?? 0;
-                $quotationItem->total_amount = $item->total_amount ?? 0;
-                $quotationItem->save();
+            if (!empty($options['customer_type'])) {
+                if ($options['customer_type'] === 'new' && !empty($options['customer_name'])) {
+                    $customerService = app(CustomerService::class);
+                    $data = [
+                        'customer_name' => $options['customer_name'],
+                        'company_name' => $options['customer_name'],
+                        'contact_person_name' => $options['customer_name'],
+                        'customer_email' => $options['customer_email'] ?? $salesProposal->customer_email,
+                        'contact_person_email' => $options['customer_email'] ?? $salesProposal->customer_email,
+                        'customer_phone' => $options['customer_phone'] ?? $salesProposal->customer_phone,
+                        'contact_person_mobile' => $options['customer_phone'] ?? $salesProposal->customer_phone,
+                        'tax_number' => $options['tax_number'] ?? null,
+                        'payment_terms' => $options['payment_terms'] ?? null,
+                        'billing_name' => $options['billing_name'] ?? $options['customer_name'],
+                        'billing_address' => $options['billing_address_line_1'] ?? $options['billing_address'] ?? $options['customer_address'] ?? $salesProposal->customer_address,
+                        'billing_address_line_2' => $options['billing_address_line_2'] ?? null,
+                        'billing_city' => $options['billing_city'] ?? $options['customer_city'] ?? null,
+                        'billing_state' => $options['billing_state'] ?? $options['customer_state'] ?? null,
+                        'billing_zip_code' => $options['billing_zip_code'] ?? $options['billing_postal_code'] ?? $options['customer_zip_code'] ?? null,
+                        'billing_country' => $options['billing_country'] ?? $options['customer_country'] ?? null,
+                        'shipping_name' => $options['shipping_name'] ?? $options['customer_name'],
+                        'shipping_address' => $options['shipping_address_line_1'] ?? $options['shipping_address'] ?? $options['customer_address'] ?? $salesProposal->customer_address,
+                        'shipping_address_line_2' => $options['shipping_address_line_2'] ?? null,
+                        'shipping_city' => $options['shipping_city'] ?? $options['customer_city'] ?? null,
+                        'shipping_state' => $options['shipping_state'] ?? $options['customer_state'] ?? null,
+                        'shipping_zip_code' => $options['shipping_zip_code'] ?? $options['shipping_postal_code'] ?? $options['customer_zip_code'] ?? null,
+                        'shipping_country' => $options['shipping_country'] ?? $options['customer_country'] ?? null,
+                    ];
 
-                foreach ($item->taxes as $tax) {
-                    $quotationTax = new SalesQuotationItemTax();
-                    $quotationTax->item_id = $quotationItem->id;
-                    $quotationTax->tax_name = $tax->tax_name;
-                    $quotationTax->tax_rate = $tax->tax_rate;
-                    $quotationTax->save();
+                    $newCustomer = $customerService->createCustomer($data);
+                    $customerId = $newCustomer->user_id ?? $newCustomer->id;
+                    $billingAddress = $newCustomer->billing_address ?? $billingAddress;
+                    $shippingAddress = $newCustomer->shipping_address ?? $shippingAddress;
+                } elseif ($options['customer_type'] === 'existing' && !empty($options['customer_id'])) {
+                    $customerId = (int) $options['customer_id'];
+                    $custUser = User::find($customerId);
+                    if ($custUser) {
+                        $billingAddress = $custUser->address ?? $billingAddress;
+                        $shippingAddress = $custUser->address ?? $shippingAddress;
+                    }
                 }
             }
 
-            $hasOtc = $salesProposal->items->contains(function ($i) {
-                return ($i->section === 'otc' || $i->section === 'general' || empty($i->section)) &&
-                    ((int) $i->product_id > 0 || (float) $i->unit_price > 0 || !empty($i->description));
-            });
-
-            $hasMrc = $salesProposal->items->contains(function ($i) {
-                return $i->section === 'mrc' &&
-                    ((int) $i->product_id > 0 || (float) $i->unit_price > 0 || !empty($i->description));
-            });
-
-            $targetCreatorId = $quotation->created_by ?: ($salesProposal->created_by ?: creatorId());
-            $targetAuthorId = $quotation->creator_id ?: ($salesProposal->creator_id ?: Auth::id());
-
-            $defaultPages = QuotationDefaultPage::where('created_by', $targetCreatorId)
-                ->where(function ($query) use ($targetAuthorId, $targetCreatorId) {
-                    $query->where('creator_id', $targetAuthorId)
-                        ->orWhere('creator_id', $targetCreatorId);
-                })
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get();
-            $pages = [];
-
-            if ($defaultPages && $defaultPages->count() > 0) {
-                foreach ($defaultPages as $page) {
-                    $pageType = $page->page_type ?? 'general';
-
-                    if ($pageType === 'otc' && !$hasOtc) {
-                        continue;
-                    }
-
-                    if ($pageType === 'mrc' && !$hasMrc) {
-                        continue;
-                    }
-
-                    $content = $page->content;
-                    if ($pageType === 'otc' && (empty($content) || trim($content) === '')) {
-                        $content = '[OTC_CHARGES_TABLE]';
-                    } elseif ($pageType === 'mrc' && (empty($content) || trim($content) === '')) {
-                        $content = '[MRC_CHARGES_TABLE]';
-                    }
-
-                    $pages[] = [
-                        'title' => $page->title,
-                        'content' => $content,
-                        'page_type' => $pageType,
-                        'background_image' => $page->background_image ?? '',
-                        'sort_order' => $page->sort_order ?? (count($pages) + 1),
-                    ];
-                }
+            $productItems = [];
+            if ($customItems !== null) {
+                $productItems = array_values(array_filter($customItems, function ($item) {
+                    return !empty($item['product_id']) && (int) $item['product_id'] > 0;
+                }));
             } else {
-                $orderIndex = 1;
-                if ($hasOtc) {
-                    $pages[] = [
-                        'title' => 'One-Time Charges (OTC)',
-                        'content' => '[OTC_CHARGES_TABLE]',
-                        'page_type' => 'otc',
-                        'background_image' => '',
-                        'order' => $orderIndex++,
-                    ];
-                }
-                if ($hasMrc) {
-                    $pages[] = [
-                        'title' => 'Monthly Recurring Charges (MRC)',
-                        'content' => '[MRC_CHARGES_TABLE]',
-                        'page_type' => 'mrc',
-                        'background_image' => '',
-                        'order' => $orderIndex++,
+                $dbItems = $salesProposal->items()->with(['taxes', 'product'])->get();
+                foreach ($dbItems as $item) {
+                    $type = $item->product_type ?: ($item->product?->type ?? 'product');
+                    $productItems[] = [
+                        'product_id' => $item->product_id,
+                        'product_type' => $type,
+                        'description' => $item->description,
+                        'quantity' => (int) ($item->quantity ?? 1),
+                        'unit_price' => (float) ($item->unit_price ?? 0),
+                        'discount_type' => $item->discount_type ?? 'percentage',
+                        'discount_percentage' => (float) ($item->discount_percentage ?? 0),
+                        'discount_amount' => (float) ($item->discount_amount ?? 0),
+                        'tax_percentage' => (float) ($item->tax_percentage ?? 0),
+                        'tax_amount' => (float) ($item->tax_amount ?? 0),
+                        'total_amount' => (float) ($item->total_amount ?? 0),
+                        'taxes' => $item->taxes ? $item->taxes->map(fn($t) => [
+                            'tax_name' => $t->tax_name,
+                            'tax_rate' => $t->tax_rate,
+                        ])->toArray() : [],
                     ];
                 }
             }
 
-            if (!empty($pages)) {
-                $this->quotationService->saveQuotationPageContents($quotation->id, $pages);
+            if (empty($productItems)) {
+                throw new \Exception(__('Proposal does not have any items to convert to sales order.'));
+            }
+
+            // Validate stock only for physical product items (services have unlimited quantity)
+            foreach ($productItems as $item) {
+                $productId = (int) $item['product_id'];
+                $qty = (int) ($item['quantity'] ?? 1);
+                $product = ProductServiceItem::with('warehouseStocks')->find($productId);
+
+                $isService = ($item['product_type'] ?? '') === 'service' || ($product && $product->type === 'service');
+
+                if ($product && !$isService) {
+                    $availableStock = $targetWarehouseId
+                        ? ($product->warehouseStocks->where('warehouse_id', $targetWarehouseId)->first()?->quantity ?? 0)
+                        : $product->warehouseStocks->sum('quantity');
+
+                    if ($qty > $availableStock) {
+                        throw new \Exception(__("Requested quantity (:qty) exceeds available stock (:stock) for ':name'.", [
+                            'qty' => $qty,
+                            'stock' => $availableStock,
+                            'name' => $product->name,
+                        ]));
+                    }
+                }
+            }
+
+            $subtotal = 0.0;
+            $taxAmount = 0.0;
+            $discountAmount = 0.0;
+
+            foreach ($productItems as &$pItem) {
+                $qty = max(1, (int) ($pItem['quantity'] ?? 1));
+                $price = max(0, (float) ($pItem['unit_price'] ?? 0));
+                $lineTotal = $qty * $price;
+
+                $discType = $pItem['discount_type'] ?? 'percentage';
+                if ($discType === 'fixed') {
+                    $dAmount = min($lineTotal, max(0, (float) ($pItem['discount_amount'] ?? 0)));
+                    $dPct = $lineTotal > 0 ? ($dAmount / $lineTotal) * 100 : 0;
+                } else {
+                    $dPct = max(0, min(100, (float) ($pItem['discount_percentage'] ?? 0)));
+                    $dAmount = ($lineTotal * $dPct) / 100;
+                }
+
+                $taxRate = (float) ($pItem['tax_percentage'] ?? 0);
+                if (!empty($pItem['taxes']) && is_array($pItem['taxes'])) {
+                    $taxRate = array_reduce($pItem['taxes'], fn($sum, $t) => $sum + (float) ($t['tax_rate'] ?? $t['rate'] ?? 0), 0.0);
+                }
+
+                $afterDisc = max(0, $lineTotal - $dAmount);
+                $tAmount = ($afterDisc * $taxRate) / 100;
+                $totAmount = max(0, $afterDisc + $tAmount);
+
+                $pItem['quantity'] = $qty;
+                $pItem['unit_price'] = $price;
+                $pItem['discount_type'] = $discType;
+                $pItem['discount_percentage'] = round($dPct, 4);
+                $pItem['discount_amount'] = round($dAmount, 2);
+                $pItem['tax_percentage'] = round($taxRate, 4);
+                $pItem['tax_amount'] = round($tAmount, 2);
+                $pItem['total_amount'] = round($totAmount, 2);
+
+                $subtotal += $lineTotal;
+                $discountAmount += $dAmount;
+                $taxAmount += $tAmount;
+            }
+            unset($pItem);
+
+            $totalAmount = max(0, $subtotal + $taxAmount - $discountAmount);
+
+            // Assignment handling
+            $assignedGroupId = null;
+            $assignmentStatus = SalesOrder::ASSIGNMENT_UNASSIGNED;
+            if (!empty($options['assigned_group_id'])) {
+                $assignedGroupId = (int) $options['assigned_group_id'];
+                $assignmentStatus = SalesOrder::ASSIGNMENT_GROUP_ASSIGNED;
+            }
+
+            $salesOrder = SalesOrder::create([
+                'name' => !empty($options['order_name']) ? $options['order_name'] : ($salesProposal->subject ?: ($salesProposal->proposal_number ?? 'From Proposal')),
+                'proposal_id' => $salesProposal->id,
+                'status' => SalesOrder::STATUS_CONFIRMED,
+                'delivery_status' => SalesOrder::DELIVERY_STATUS_PENDING,
+                'assignment_status' => $assignmentStatus,
+                'assigned_group_id' => $assignedGroupId,
+                'customer_id' => $customerId,
+                'warehouse_id' => $targetWarehouseId,
+                'order_date' => now()->toDateString(),
+                'expected_delivery_date' => $salesProposal->due_date ? $salesProposal->due_date->format('Y-m-d') : now()->addDays(15)->format('Y-m-d'),
+                'billing_address' => $billingAddress,
+                'shipping_address' => $shippingAddress,
+                'description' => $salesProposal->subject,
+                'notes' => $salesProposal->notes,
+                'subtotal' => round($subtotal, 2),
+                'tax_amount' => round($taxAmount, 2),
+                'discount_amount' => round($discountAmount, 2),
+                'total_amount' => round($totalAmount, 2),
+                'confirmed_at' => now(),
+                'creator_id' => Auth::id() ?: ($salesProposal->creator_id ?: creatorId()),
+                'created_by' => creatorId(),
+            ]);
+
+            foreach ($productItems as $item) {
+                $orderItem = SalesOrderItem::create([
+                    'order_id' => $salesOrder->id,
+                    'product_id' => $item['product_id'],
+                    'product_type' => $item['product_type'] ?? 'product',
+                    'quantity' => $item['quantity'] ?? 1,
+                    'unit_price' => $item['unit_price'] ?? 0,
+                    'discount_type' => $item['discount_type'] ?? 'percentage',
+                    'discount_percentage' => $item['discount_percentage'] ?? 0,
+                    'discount_amount' => $item['discount_amount'] ?? 0,
+                    'tax_percentage' => $item['tax_percentage'] ?? 0,
+                    'tax_amount' => $item['tax_amount'] ?? 0,
+                    'final_price' => $item['total_amount'] ?? 0,
+                    'total_amount' => $item['total_amount'] ?? 0,
+                    'description' => $item['description'] ?? null,
+                    'creator_id' => $salesOrder->creator_id,
+                    'created_by' => $salesOrder->created_by,
+                ]);
+
+                if (!empty($item['taxes']) && is_array($item['taxes'])) {
+                    foreach ($item['taxes'] as $tax) {
+                        SalesOrderItemTax::create([
+                            'item_id' => $orderItem->id,
+                            'tax_name' => $tax['tax_name'] ?? $tax['name'] ?? 'Tax',
+                            'tax_rate' => (float) ($tax['tax_rate'] ?? $tax['rate'] ?? 0),
+                        ]);
+                    }
+                }
+            }
+
+            // Sync user assignments or group members
+            if (!empty($assignedGroupId)) {
+                $group = UserGroup::find($assignedGroupId);
+                if ($group) {
+                    $groupUserIds = $group->users()->pluck('users.id')->toArray();
+                    $salesOrder->assignedUsers()->sync($groupUserIds);
+                }
+            } elseif (!empty($options['assigned_user_ids']) && is_array($options['assigned_user_ids'])) {
+                $validIds = User::whereIn('id', $options['assigned_user_ids'])
+                    ->where('created_by', creatorId())
+                    ->pluck('id')
+                    ->toArray();
+                $salesOrder->assignedUsers()->sync($validIds);
+            } elseif (!empty($options['assigned_user_id'])) {
+                $validIds = User::whereIn('id', [(int) $options['assigned_user_id']])
+                    ->where('created_by', creatorId())
+                    ->pluck('id')
+                    ->toArray();
+                $salesOrder->assignedUsers()->sync($validIds);
             }
 
             $salesProposal->update([
-                'converted_to_quotation' => true,
-                'quotation_id' => $quotation->id,
+                'converted_to_sales_order' => true,
+                'sales_order_id' => $salesOrder->id,
             ]);
 
-            return $quotation;
+            return $salesOrder;
+        });
+    }
+
+    public function convertProposalToInvoice(SalesProposal $salesProposal, ?array $customItems = null, ?int $warehouseId = null): SalesInvoice
+    {
+        return DB::transaction(function () use ($salesProposal, $customItems, $warehouseId) {
+            $targetWarehouseId = $warehouseId ?: $salesProposal->warehouse_id;
+
+            $productItems = [];
+            if ($customItems !== null) {
+                $productItems = array_values(array_filter($customItems, function ($item) {
+                    return !empty($item['product_id']) && (int) $item['product_id'] > 0;
+                }));
+            } else {
+                $dbItems = $salesProposal->items()->with(['taxes', 'product'])->get();
+                foreach ($dbItems as $item) {
+                    $type = $item->product_type ?: ($item->product?->type ?? 'product');
+                    $productItems[] = [
+                        'product_id' => $item->product_id,
+                        'product_type' => $type,
+                        'description' => $item->description,
+                        'quantity' => (int) ($item->quantity ?? 1),
+                        'unit_price' => (float) ($item->unit_price ?? 0),
+                        'discount_type' => $item->discount_type ?? 'percentage',
+                        'discount_percentage' => (float) ($item->discount_percentage ?? 0),
+                        'discount_amount' => (float) ($item->discount_amount ?? 0),
+                        'tax_percentage' => (float) ($item->tax_percentage ?? 0),
+                        'tax_amount' => (float) ($item->tax_amount ?? 0),
+                        'total_amount' => (float) ($item->total_amount ?? 0),
+                        'taxes' => $item->taxes ? $item->taxes->map(fn($t) => [
+                            'tax_name' => $t->tax_name,
+                            'tax_rate' => $t->tax_rate,
+                        ])->toArray() : [],
+                    ];
+                }
+            }
+
+            if (empty($productItems)) {
+                throw new \Exception(__('Proposal does not have any items to convert to invoice.'));
+            }
+
+            // Validate stock only for physical product items (services have unlimited quantity)
+            foreach ($productItems as $index => $item) {
+                $productId = (int) $item['product_id'];
+                $qty = (int) ($item['quantity'] ?? 1);
+                $product = \Automas\ProductService\Models\ProductServiceItem::with('warehouseStocks')->find($productId);
+
+                $isService = ($item['product_type'] ?? '') === 'service' || ($product && $product->type === 'service');
+
+                if ($product && !$isService) {
+                    $availableStock = $targetWarehouseId
+                        ? ($product->warehouseStocks->where('warehouse_id', $targetWarehouseId)->first()?->quantity ?? 0)
+                        : $product->warehouseStocks->sum('quantity');
+
+                    if ($qty > $availableStock) {
+                        throw new \Exception(__("Requested quantity (:qty) exceeds available stock (:stock) for ':name'.", [
+                            'qty' => $qty,
+                            'stock' => $availableStock,
+                            'name' => $product->name,
+                        ]));
+                    }
+                }
+            }
+
+            $subtotal = 0.0;
+            $taxAmount = 0.0;
+            $discountAmount = 0.0;
+
+            foreach ($productItems as &$pItem) {
+                $qty = max(1, (int) ($pItem['quantity'] ?? 1));
+                $price = max(0, (float) ($pItem['unit_price'] ?? 0));
+                $lineTotal = $qty * $price;
+
+                $discType = $pItem['discount_type'] ?? 'percentage';
+                if ($discType === 'fixed') {
+                    $dAmount = min($lineTotal, max(0, (float) ($pItem['discount_amount'] ?? 0)));
+                    $dPct = $lineTotal > 0 ? ($dAmount / $lineTotal) * 100 : 0;
+                } else {
+                    $dPct = max(0, min(100, (float) ($pItem['discount_percentage'] ?? 0)));
+                    $dAmount = ($lineTotal * $dPct) / 100;
+                }
+
+                $taxRate = (float) ($pItem['tax_percentage'] ?? 0);
+                if (!empty($pItem['taxes']) && is_array($pItem['taxes'])) {
+                    $taxRate = array_reduce($pItem['taxes'], fn($sum, $t) => $sum + (float) ($t['tax_rate'] ?? $t['rate'] ?? 0), 0.0);
+                }
+
+                $afterDisc = max(0, $lineTotal - $dAmount);
+                $tAmount = ($afterDisc * $taxRate) / 100;
+                $totAmount = max(0, $afterDisc + $tAmount);
+
+                $pItem['quantity'] = $qty;
+                $pItem['unit_price'] = $price;
+                $pItem['discount_type'] = $discType;
+                $pItem['discount_percentage'] = round($dPct, 4);
+                $pItem['discount_amount'] = round($dAmount, 2);
+                $pItem['tax_percentage'] = round($taxRate, 4);
+                $pItem['tax_amount'] = round($tAmount, 2);
+                $pItem['total_amount'] = round($totAmount, 2);
+
+                $subtotal += $lineTotal;
+                $discountAmount += $dAmount;
+                $taxAmount += $tAmount;
+            }
+            unset($pItem);
+
+            $totalAmount = max(0, $subtotal + $taxAmount - $discountAmount);
+
+            $invoice = new SalesInvoice();
+            $invoice->invoice_date = now()->format('Y-m-d');
+            $invoice->due_date = $salesProposal->due_date ? $salesProposal->due_date->format('Y-m-d') : now()->addDays(15)->format('Y-m-d');
+            $invoice->customer_id = $salesProposal->customer_id;
+            $invoice->customer_name = $salesProposal->customer_name;
+            $invoice->customer_email = $salesProposal->customer_email;
+            $invoice->customer_phone = $salesProposal->customer_phone;
+            $invoice->customer_address = $salesProposal->customer_address;
+            $invoice->warehouse_id = $targetWarehouseId;
+            $invoice->type = 'product';
+            $invoice->payment_terms = $salesProposal->payment_terms;
+            $invoice->notes = $salesProposal->notes;
+            $invoice->subtotal = round($subtotal, 2);
+            $invoice->tax_amount = round($taxAmount, 2);
+            $invoice->discount_amount = round($discountAmount, 2);
+            $invoice->discount_type = 'percentage';
+            $invoice->total_amount = round($totalAmount, 2);
+            $invoice->paid_amount = 0;
+            $invoice->balance_amount = round($totalAmount, 2);
+            $invoice->status = 'draft';
+            $invoice->creator_id = Auth::id() ?: ($salesProposal->creator_id ?: creatorId());
+            $invoice->created_by = creatorId();
+            $invoice->save();
+
+            foreach ($productItems as $item) {
+                $invoiceItem = new SalesInvoiceItem();
+                $invoiceItem->invoice_id = $invoice->id;
+                $invoiceItem->product_id = $item['product_id'];
+                $invoiceItem->description = $item['description'] ?? null;
+                $invoiceItem->product_type = $item['product_type'] ?? 'product';
+                $invoiceItem->quantity = $item['quantity'] ?? 1;
+                $invoiceItem->unit_price = $item['unit_price'] ?? 0;
+                $invoiceItem->discount_type = $item['discount_type'] ?? 'percentage';
+                $invoiceItem->discount_percentage = $item['discount_percentage'] ?? 0;
+                $invoiceItem->discount_amount = $item['discount_amount'] ?? 0;
+                $invoiceItem->tax_percentage = $item['tax_percentage'] ?? 0;
+                $invoiceItem->tax_amount = $item['tax_amount'] ?? 0;
+                $invoiceItem->total_amount = $item['total_amount'] ?? 0;
+                $invoiceItem->creator_id = $invoice->creator_id;
+                $invoiceItem->created_by = $invoice->created_by;
+                $invoiceItem->save();
+
+                if (!empty($item['taxes']) && is_array($item['taxes'])) {
+                    foreach ($item['taxes'] as $tax) {
+                        $invoiceTax = new SalesInvoiceItemTax();
+                        $invoiceTax->item_id = $invoiceItem->id;
+                        $invoiceTax->tax_name = $tax['tax_name'] ?? $tax['name'] ?? '';
+                        $invoiceTax->tax_rate = (float) ($tax['tax_rate'] ?? $tax['rate'] ?? 0);
+                        $invoiceTax->save();
+                    }
+                }
+            }
+
+            $salesProposal->update([
+                'converted_to_invoice' => true,
+            ]);
+
+            return $invoice;
         });
     }
 
@@ -623,8 +890,16 @@ class ProposalService
 
         $proposal = SalesProposal::find($proposalId);
         $authorUserId = $proposal?->creator_id ?? Auth::id();
-        $authorUser = $authorUserId ? User::with('employee.designation')->find($authorUserId) : null;
-        $employee = $authorUser?->employee;
+        $authorUser = $authorUserId ? User::find($authorUserId) : null;
+
+        $employee = null;
+        if (class_exists(\Automas\Hrm\Models\Employee::class)) {
+            try {
+                $employee = \Automas\Hrm\Models\Employee::with('designation')->where('user_id', $authorUserId)->first();
+            } catch (\Throwable $e) {
+                // Ignore if HRM table deleted
+            }
+        }
 
         $userShortcodes = [
             'user_name' => $authorUser?->name ?? '',

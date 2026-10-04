@@ -12,13 +12,17 @@ import { CreateUserProps, CreateUserFormData } from './types';
 export default function Create({ onSuccess, roles = {} }: CreateUserProps) {
     const { t } = useTranslation();
     const { auth } = usePage().props as any;
+    
+    const roleKeys = Object.keys(roles || {});
+    const defaultRole = roleKeys.length === 1 ? roleKeys[0] : '';
+
     const { data, setData, post, processing, errors } = useForm<CreateUserFormData>({
         name: '',
         email: '',
         password: '',
         password_confirmation: '',
         mobile_no: '',
-        type: '',
+        type: defaultRole,
         is_enable_login: true,
     });
 
@@ -101,18 +105,26 @@ export default function Create({ onSuccess, roles = {} }: CreateUserProps) {
                     {!isSuperAdmin && (
                         <div>
                             <Label htmlFor="type" required>{t('Role')}</Label>
-                            <Select value={data.type} onValueChange={(value) => setData('type', value)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(roles).map(([id, label]) => (
-                                        <SelectItem key={id} value={id}>
-                                            {label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {roleKeys.length === 1 ? (
+                                <Input
+                                    value={roles[roleKeys[0]]}
+                                    disabled
+                                    className="border-input bg-muted/30 text-foreground opacity-100 disabled:opacity-100 cursor-not-allowed"
+                                />
+                            ) : (
+                                <Select value={data.type} onValueChange={(value) => setData('type', value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t('Select Role')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(roles).map(([id, label]) => (
+                                            <SelectItem key={id} value={id}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                             {Object.keys(roles).length === 0 && auth.user?.permissions?.includes('create-roles') && (
                                 <p className="text-xs text-gray-500 mb-1">
                                     {t('Create role here.')} <button onClick={() => router.get(route('roles.create'))} className="text-blue-600 hover:underline">{t('Create role')}</button>

@@ -131,7 +131,6 @@ class EmailTemplate extends Model
            
             '{purchase_vendor_name}',
 
-            '{proposal_number}',
             '{status}',
 
             '{plan_name}',
@@ -400,7 +399,6 @@ class EmailTemplate extends Model
            
             'purchase_vendor_name' => '-',
 
-            'proposal_number' => '-',
             'status' => '-',
 
             'plan_name' => '-',
