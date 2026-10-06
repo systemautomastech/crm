@@ -1,46 +1,48 @@
-# 🚀 Automas ERP
+# 🚀 Automas CRM
 
-**Automas ERP** is a modern, modular, and scalable **Enterprise Resource Planning (ERP)** system built on **Laravel 12**.  
-It is designed for small to medium businesses to manage operations efficiently from a single centralized platform.
+**Automas CRM** is a modern, modular, and scalable **Customer Relationship Management (CRM)** system built on **Laravel 12** and **Inertia.js (React 18)**.  
+It is designed for small to enterprise-level businesses to manage sales pipelines, leads, proposals, PBX telephony, inventory, and business operations efficiently from a single centralized platform.
 
 ---
 
-## 📌 Features
+## 📌 Key Features
 
-- 🔐 Role & Permission Management  
-- 🏢 Multi-Company / Multi-Tenant Support  
-- 👥 User & Employee Management  
-- 📦 Product & Service Management  
-- 💼 HRM (Employee, Attendance, Leave)  
-- 🧾 Accounts & Financial Modules  
-- 📊 Reports & Analytics  
-- 💬 Internal Messaging (Chat Module)  
-- ⚙️ Centralized Settings Panel  
-- 🧩 Modular Architecture (Package Based)  
-- 🌐 Ready for SaaS & On-Premise Deployment  
+- 🔐 **Role & Permission Management** 
+- 🏢 **Multi-Company / Multi-Tenant Support** 
+- 💼 **CRM & Lead Management** 
+- 📞 **PBX & WebRTC Softphone Dialer** 
+- 📜 **Proposals, Sales Orders, Invoicing System** 
+- 📦 **Inventory & Warehouse Management** 
+- 👥 **User & Employee Management** 
+- 💬 **Messaging & Omnichannel Integrations**  
+- 💬 **Facebook & WhatsApp Integrations**  
+- ⚙️ **Centralized Settings Panel**  
+- 🧩 **Modular Package-Based Architecture**  
+- 🌐 **SaaS Ready**  
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Laravel 12 (PHP 8.2+)  
-- **Frontend:** Blade, Bootstrap 5, Tailwind CSS  
+- **Backend Framework:** Laravel 12 (PHP 8.2+)  
+- **Frontend Stack:** Inertia.js, React 18, TypeScript  
+- **Styling & UI:** Tailwind CSS, Shadcn UI  
 - **Database:** MySQL / MariaDB  
+- **Build Tools:** Vite, NPM, Cross-Env  
 - **Authentication:** Laravel Authentication  
-- **Architecture:** Modular (Custom Laravel Packages)  
-- **Build Tools:** Vite, NPM  
-- **Server:** Apache / Nginx  
+- **Architecture:** Modular (Custom Laravel Packages)
+- **Server:** Apache / Nginx
 
 ---
 
 ## 📂 Project Structure
 
-AutomasERP/
+AutomasCRM/
 ├── app/
 ├── bootstrap/
 ├── config/
 ├── database/
-├── packages/ # Custom ERP modules
+├── packages/ # Custom CRM modules
 ├── public/
 ├── resources/
 ├── routes/
@@ -65,130 +67,160 @@ AutomasERP/
 ### 2️⃣ Setup Steps
 
 ```bash
-git clone https://github.com/systemautomastech/erp.git
-cd erp
+# 1. Clone the repository
+git clone https://github.com/systemautomastech/crm.git
+cd crm
+
+# 2. Install PHP Dependencies
 composer install
+
+# 3. Install Node Dependencies
 npm install
+
+# 4. Build Frontend Assets
 npm run build
+```
 
-3️⃣ Environment Configuration
+---
+
+### 3️⃣ Environment Configuration
+
+```bash
+# Copy sample environment file
 cp .env.example .env
-php artisan key:generate
 
+# Generate application key
+php artisan key:generate
+```
+
+> **Note:** Update the `.env` file with your database credentials (`DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`), mail configuration, and `APP_URL`.
+
+---
 
 Update the .env file with your database credentials.
 
-4️⃣ Database Migration
+```bash
+# Run database migrations and seed default data
 php artisan migrate
 php artisan db:seed
+```
 
-5️⃣ Storage & Permissions
+---
+
+### 5️⃣ Storage Link & Permissions
+
+```bash
+# Create symbolic link for public storage
 php artisan storage:link
+```
 
+Ensure the following directories are writable by your web server:
+- `storage/`
+- `bootstrap/cache/`
 
-Ensure the following directories are writable:
+---
 
-storage/
+### 6️⃣ Run the Application
 
-bootstrap/cache/
+For local development:
 
-6️⃣ Run the Application
+```bash
+# Option A: Run Laravel & Vite together
 php artisan serve
+npm run dev
 
+# Access the application at: http://127.0.0.1:8000
+```
 
-Access the system via:
+---
 
-http://127.0.0.1:8000
+## 🔐 Licensing & Activation
 
-🔐 Licensing & Activation
+- This application includes a license verification system.
+- License validation occurs during installation or initial configuration.
+- ⚠️ **Notice:** Do not alter or remove core licensing files. Modifying these files violates the software license agreement.
 
-This application includes a license verification system
+---
 
-License is validated during installation or first use
+## 📦 Modular Packages
 
-Unauthorized usage may result in limited or restricted functionality
+- **Lead:** CRM lead pipelines, deal tracking, and stage management.
+- **Pbx:** WebRTC dialer, active call interface, and softphone integration.
+- **ProductService:** Products, services, multi-warehouse stock management, and stock transfers.
+- **SalesOrder:** Quotations, proposals, sales orders, and invoicing workflows.
+- **LandingPage:** SaaS landing page builder, order management, and Marketplace addons.
+- **FacebookChat:** Facebook Messenger integration via Meta Webhooks.
+- **WhatsAppChat:** WhatsApp Business API integration.
 
-⚠️ Do not remove or modify licensing files.
-Doing so violates the license agreement.
+Each module can be independently updated, customized, or extended.
 
-📦 Modules
+---
 
-Automas ERP uses a package-based modular architecture, including:
+## 🧪 Testing
 
-Account Management
+Run PHP test suites using Artisan:
 
-Human Resource Management (HRM)
-
-Product & Service Management
-
-Landing Page Management
-
-Task & Project Management
-
-Internal Messaging (Chat)
-
-Each module can be enabled, extended, or customized independently.
-
-🧪 Testing
+```bash
 php artisan test
+```
 
-🔒 Security Notes
+---
 
-Never expose the .env file
+## 🔒 Security Notes
 
-Always use HTTPS in production
+- Never commit or expose your `.env` file publicly.
+- Enable HTTPS in production environments.
+- Restrict directory permissions to secure system files.
+- Keep dependencies updated via Composer and NPM.
 
-Keep file permissions properly restricted
+---
 
-Regularly update dependencies
-
-🚀 Deployment
+## 🚀 Deployment
 
 Recommended production stack:
+- **OS:** Ubuntu 20.04 LTS / 22.04 LTS
+- **Web Server:** Nginx with PHP-FPM
+- **Process Manager:** Supervisor for queue workers
+- **Scheduler:** Cron job for `php artisan schedule:run`
 
-Ubuntu 20.04+
+---
 
-Nginx
+## 👨‍💻 Developer Information
 
-PHP-FPM
+**Lead Developer / Senior Software Engineer**  
+- **Name:** Mesbah Uddin  
+- **Role:** Senior Software Engineer  
 
-Supervisor (Queues)
+**Specialization:**
+- Laravel & Inertia.js Architecture
+- CRM, ERP & SaaS System Engineering
+- Telephony & WebRTC Integrations
+- Secure Licensing Systems
+- Modular Package Architecture
+- API & Backend Optimization
 
-Cron Jobs for scheduled tasks
+*This project adheres to enterprise architectural standards, clean code principles, and scalable design patterns.*
 
-👨‍💻 Developer Information
+---
 
-Lead Developer / Senior Software Engineer
-Name: Mesbah Uddin
-Role: Senior Software Engineer
+## 📜 License
 
-Specialization:
-Laravel Architecture
-ERP & SaaS Systems
-Secure Licensing Systems
-Modular Application Design
-API & Backend Optimization
-This project follows industry best practices, clean architecture, and scalable design principles suitable for enterprise-level applications.
-📜 License
+This software is commercial and protected by copyright law.
 
-This software is commercial and protected by copyright.
+- ❌ Redistribution without express permission is prohibited.  
+- ❌ Reselling or unauthorized sublicensing is strictly prohibited.  
+- ✅ Usage is authorized only for licensed domains and client installations.  
 
-❌ Redistribution not allowed
+---
 
-❌ Reselling without permission is prohibited
+## 🤝 Support & Contact
 
-✅ Usage allowed only for licensed domains
+For technical support, custom module development, or licensing inquiries:
 
-🤝 Support
+**Automas Technologies**  
+📧 **Email:** [support@automas.com.bd](mailto:support@automas.com.bd)  
+🌐 **Website:** [https://automas.com.bd](https://automas.com.bd)  
 
-For support, customization, or licensing inquiries:
+---
 
-Automas Technologies
-📧 support@automas.com.bd
-
-🌐 https://automas.com.bd
-
-⭐ Credits
-
-Developed & Maintained by
-Automas Technologies
+⭐ **Developed & Maintained by Automas Technologies**
