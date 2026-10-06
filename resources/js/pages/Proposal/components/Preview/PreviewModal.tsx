@@ -176,7 +176,7 @@ export default function PreviewModal({
                     window.close();
                 };
                 window.print();
-            }, 0);
+            }, 600);
             return () => clearTimeout(timer);
         }
     }, [inline, autoPrint, formData, customers, title, pageTitle]);

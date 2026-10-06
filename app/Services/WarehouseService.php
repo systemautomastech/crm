@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Warehouse;
 use Automas\ProductService\Models\ProductServiceItem;
+use Automas\ProductService\Models\WarehouseStock;
+use Illuminate\Support\Facades\DB;
 
 class WarehouseService
 {
@@ -50,8 +52,8 @@ class WarehouseService
                         $sub->where('warehouse_id', $warehouseId);
                     });
             })->with([
-                'warehouseStocks' => fn ($q) => $q->where('warehouse_id', $warehouseId),
-            ]);
+                        'warehouseStocks' => fn($q) => $q->where('warehouse_id', $warehouseId),
+                    ]);
         }
 
         return $query->get()->map(function ($product) {
@@ -74,12 +76,40 @@ class WarehouseService
                 'unit_name' => $unitName,
                 'type' => $product->type,
                 'stock_quantity' => $stockQuantity,
-                'taxes' => $product->taxes->map(fn ($tax) => [
+                'taxes' => $product->taxes->map(fn($tax) => [
                     'id' => $tax->id,
                     'tax_name' => $tax->tax_name,
                     'rate' => $tax->rate,
                 ]),
             ];
+        });
+    }
+
+    public function transferWarehouse(int $fromWarehouseId, int $toWarehouseId)
+    {
+        if ($fromWarehouseId === $toWarehouseId) {
+            return;
+        }
+
+        DB::transaction(function () use ($fromWarehouseId, $toWarehouseId) {
+            $sourceStocks = WarehouseStock::where('warehouse_id', $fromWarehouseId)->get();
+
+            foreach ($sourceStocks as $sourceStock) {
+                if ($sourceStock->quantity <= 0) {
+                    $sourceStock->delete();
+                    continue;
+                }
+
+                $destinationStock = WarehouseStock::firstOrNew([
+                    'product_id' => $sourceStock->product_id,
+                    'warehouse_id' => $toWarehouseId,
+                ]);
+
+                $destinationStock->quantity = (float) ($destinationStock->quantity ?? 0) + (float) $sourceStock->quantity;
+                $destinationStock->save();
+
+                $sourceStock->delete();
+            }
         });
     }
 }

@@ -61,7 +61,7 @@ export default function Edit() {
     useFlashMessages();
 
     const templateForm = useForm({
-        from: emailTemplate.from || 'Automas ERP',
+        from: emailTemplate.from || 'Automas CRM',
     });
 
     const contentForm = useForm({
@@ -91,22 +91,22 @@ export default function Edit() {
     return (
 
         <AuthenticatedLayout
-                    breadcrumbs={[
-                        {label: t('Email Templates'), url: route('email-templates.index')},
-                        {label: t('Edit Email Template')}
-                    ]}
-                    pageTitle={`${t('Edit Email Template')} : ${emailTemplate.name}`}
-                    pageActions={
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.visit(route('email-templates.index'))}
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            {t('Back')}
-                        </Button>
-                    }
+            breadcrumbs={[
+                { label: t('Email Templates'), url: route('email-templates.index') },
+                { label: t('Edit Email Template') }
+            ]}
+            pageTitle={`${t('Edit Email Template')} : ${emailTemplate.name}`}
+            pageActions={
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.visit(route('email-templates.index'))}
                 >
+                    <ArrowLeft className="h-4 w-4" />
+                    {t('Back')}
+                </Button>
+            }
+        >
 
             <Head title={t('Edit Email Template')} />
 
@@ -213,7 +213,7 @@ export default function Edit() {
                                 </div>
                                 <div className="flex justify-end">
                                     <Button type="submit" disabled={contentForm.processing} className="min-w-24">
-                                         <Save className="h-4 w-4 mr-2" />
+                                        <Save className="h-4 w-4 mr-2" />
                                         {contentForm.processing ? t('Saving...') : t('Save Changes')}
                                     </Button>
                                 </div>

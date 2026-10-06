@@ -26,7 +26,7 @@ export default function Hero({ settings }: HeroProps) {
     const secondaryColor = colors.secondary || 'var(--color-secondary)';
     const accentColor = colors.accent || 'var(--color-accent)';
 
-    const rawTitle = sectionData.title || 'Transform Your Business with Automas ERP';
+    const rawTitle = sectionData.title || 'Transform Your Business with Automas CRM';
     const subtitle = sectionData.subtitle || 'An all-in-one SaaS and ERP platform built to simplify operations, boost productivity, and support business growth at every stage.';
 
     const primaryButtonText = sectionData.primary_button_text || 'Start Free Trial';
@@ -36,7 +36,7 @@ export default function Hero({ settings }: HeroProps) {
 
     // Text items that change one by one automatically
     const rotatingTexts = sectionData.rotating_texts || [
-        'Automas ERP',
+        'Automas CRM',
         'Project Management',
         'Accounting System',
         'HRM & Payroll',
@@ -142,7 +142,7 @@ export default function Hero({ settings }: HeroProps) {
                                         <div className="relative overflow-hidden bg-slate-100">
                                             <img
                                                 src={heroImageUrl}
-                                                alt={t('Automas ERP Dashboard')}
+                                                alt={t('Automas CRM Dashboard')}
                                                 className="w-full h-auto object-cover max-h-[480px] rounded-b-xl shadow-inner transition-transform duration-500 hover:scale-[1.01]"
                                             />
                                         </div>

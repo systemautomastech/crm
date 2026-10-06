@@ -25,7 +25,7 @@ class LandingPageSettingSeeder extends Seeder
     private function getDefaultSettings(): array
     {
         return [
-            'company_name' => 'Automas ERP',
+            'company_name' => 'Automas CRM',
             'contact_email' => 'support@automas.com',
             'contact_phone' => '+1 (555) 123-4567',
             'contact_address' => '123 Business Ave, City, State 12345',
@@ -48,18 +48,18 @@ class LandingPageSettingSeeder extends Seeder
         return [
             'hero' => [
                 'variant' => 'hero1',
-                'title' => 'Transform Your Business with Automas ERP',
+                'title' => 'Transform Your Business with Automas CRM',
                 'subtitle' => 'An all-in-one SaaS and ERP platform built to simplify operations, boost productivity, and support business growth at every stage.',
                 'primary_button_text' => 'Start Free Trial',
                 'primary_button_link' => route('register'),
                 'secondary_button_text' => 'Login',
                 'secondary_button_link' => route('login'),
-                'highlight_text' => 'Automas ERP',
+                'highlight_text' => 'Automas CRM',
                 'image' => '/packages/automas/LandingPage/src/marketplace/hero.png'
             ],
             'header' => [
                 'variant' => 'header1',
-                'company_name' => 'Automas ERP',
+                'company_name' => 'Automas CRM',
                 'cta_text' => 'Get Started',
                 'enable_addon_link' => true,
                 'enable_pricing_link' => true,
@@ -133,7 +133,7 @@ class LandingPageSettingSeeder extends Seeder
             ],
             'benefits' => [
                 'variant' => 'benefits1',
-                'title' => 'Why Choose Automas ERP?',
+                'title' => 'Why Choose Automas CRM?',
                 'benefits' => [
                     ['title' => 'Complete Project Management', 'description' => 'Organize and track all your projects in one place with powerful task management, team collaboration, and progress tracking tools.'],
                     ['title' => 'Integrated Financial System', 'description' => 'Manage your finances seamlessly with comprehensive accounting, invoicing, expense tracking, and real-time financial reporting.'],
@@ -145,20 +145,20 @@ class LandingPageSettingSeeder extends Seeder
             ],
             'gallery' => [
                 'variant' => 'gallery1',
-                'title' => 'See Automas ERP in Action',
+                'title' => 'See Automas CRM in Action',
                 'subtitle' => 'Explore our intuitive interface and powerful features through real screenshots of our platform',
                 'images' => ['/packages/automas/LandingPage/src/marketplace/image1.png', '/packages/automas/LandingPage/src/marketplace/image2.png', '/packages/automas/LandingPage/src/marketplace/image3.png', '/packages/automas/LandingPage/src/marketplace/image4.png']
             ],
             'cta' => [
                 'variant' => 'cta1',
                 'title' => 'Ready to Transform Your Business?',
-                'subtitle' => 'Join thousands of businesses already using Automas ERP to streamline their operations.',
+                'subtitle' => 'Join thousands of businesses already using Automas CRM to streamline their operations.',
                 'primary_button' => 'Start Free Trial',
                 'secondary_button' => 'Contact Sales'
             ],
             'addons' => [
                 'title' => 'Premium Addons',
-                'subtitle' => 'Extend your Automas ERP with powerful premium modules designed to enhance your business operations',
+                'subtitle' => 'Extend your Automas CRM with powerful premium modules designed to enhance your business operations',
                 'per_page' => 20,
                 'default_price_type' => 'monthly',
                 'card_variant' => 'card1',

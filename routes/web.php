@@ -53,6 +53,7 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
     Route::get('user-groups-list/active', [UserGroupController::class, 'listActive'])->name('user-groups.list-active');
 
     // Warehouses
+    Route::post('warehouses/{warehouse}/transfer', [WarehouseController::class, 'transfer'])->name('warehouses.transfer');
     Route::resource('warehouses', WarehouseController::class);
 
     Route::resource('plans', PlanController::class);

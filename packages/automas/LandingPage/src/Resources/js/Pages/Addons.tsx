@@ -115,7 +115,7 @@ export default function Addons(props: AddonsProps) {
                             {addonSettings.title || t('Premium Addons')}
                         </h1>
                         <p className="text-base sm:text-lg text-slate-500 font-normal leading-relaxed mb-6">
-                            {addonSettings.subtitle || t('Extend your Automas ERP with powerful premium modules designed to enhance your business operations')}
+                            {addonSettings.subtitle || t('Extend your Automas CRM with powerful premium modules designed to enhance your business operations')}
                         </p>
                         <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-2xs">
                             <span className="w-2 h-2 rounded-full bg-emerald-500" />

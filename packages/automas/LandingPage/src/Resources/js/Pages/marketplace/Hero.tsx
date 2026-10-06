@@ -105,7 +105,7 @@ export default function MarketplaceHero({ settings, matchedPackage, title: propT
                                             ⚡
                                         </div>
                                         <h3 className="text-2xl font-bold text-slate-900 mb-2">{packageName}</h3>
-                                        <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">{t('Official Automas ERP Enterprise Module. Built for high reliability and seamless workflow integration.')}</p>
+                                        <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">{t('Official Automas CRM Enterprise Module. Built for high reliability and seamless workflow integration.')}</p>
                                     </div>
                                 )}
                             </div>

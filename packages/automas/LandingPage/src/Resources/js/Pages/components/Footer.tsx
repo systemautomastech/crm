@@ -22,7 +22,7 @@ export default function Footer({ settings }: FooterProps) {
     };
     const primaryColor = colors.primary || 'var(--color-primary)';
 
-    const companyName = sectionData.company_name || settings?.company_name || 'Automas ERP';
+    const companyName = sectionData.company_name || settings?.company_name || 'Automas CRM';
     const contactEmail = sectionData.contact_email || settings?.contact_email || 'support@automas.com.bd';
     const phone = sectionData.contact_phone || settings?.contact_phone || '+880 9617 300 600';
     const footerDescription = sectionData.description || 'The complete all-in-one business management solution combining Project Management, Accounting, HRM, CRM, POS, and Product Management into a single platform.';
@@ -68,10 +68,10 @@ export default function Footer({ settings }: FooterProps) {
     return (
         <footer className="bg-[#0A1E42] text-white pt-20 pb-10 border-t border-[#122A52]">
             <div className="max-w-7xl mx-auto px-6 lg:px-8">
-                
+
                 {/* 4-Col Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 pb-16 border-b border-slate-800">
-                    
+
                     {/* Brand Info from settings */}
                     <div className="lg:col-span-4 space-y-4">
                         <Link href={route('landing.page')} className="flex items-center gap-3 font-bold text-xl text-white tracking-tight">

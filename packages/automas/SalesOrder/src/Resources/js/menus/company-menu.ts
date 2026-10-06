@@ -17,7 +17,7 @@ export const salesOrderCompanyMenu = (t: (key: string) => string) => [
         icon: ShoppingCart,
         permission: 'manage-sales-orders',
         parent: '',
-        order: 35,
+        order: 50,
         children: [
             {
                 title: t('Sales Orders'),

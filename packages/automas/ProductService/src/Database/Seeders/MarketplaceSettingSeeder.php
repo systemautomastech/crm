@@ -32,7 +32,7 @@ class MarketplaceSettingSeeder extends Seeder
                 'sections' => [
                     'hero' => [
                         'variant' => 'hero1',
-                        'title' => 'Product & Service Module for Automas ERP',
+                        'title' => 'Product & Service Module for Automas CRM',
                         'subtitle' => 'Streamline your product and service management with comprehensive tools and automated inventory control.',
                         'primary_button_text' => 'Install Product & Service Module',
                         'primary_button_link' => '#install',

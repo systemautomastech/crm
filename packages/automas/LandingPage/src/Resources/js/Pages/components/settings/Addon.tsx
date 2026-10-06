@@ -24,7 +24,7 @@ export default function Addon({ data, getSectionData, updateSectionData, updateS
         // Initialize addon settings with default values if they don't exist
         const defaultSettings = {
             title: 'Premium Addons',
-            subtitle: 'Extend your Automas ERP with powerful premium modules designed to enhance your business operations',
+            subtitle: 'Extend your Automas CRM with powerful premium modules designed to enhance your business operations',
             per_page: 20,
             default_price_type: 'monthly',
             card_variant: 'card1',

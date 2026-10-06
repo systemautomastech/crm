@@ -13,7 +13,7 @@ class MarketplaceSettingSeeder extends Seeder
         // Get all available screenshots from marketplace directory
         $marketplaceDir = __DIR__ . '/../../marketplace';
         $screenshots = [];
-        
+
         if (File::exists($marketplaceDir)) {
             $files = File::files($marketplaceDir);
             foreach ($files as $file) {
@@ -22,9 +22,9 @@ class MarketplaceSettingSeeder extends Seeder
                 }
             }
         }
-        
+
         sort($screenshots);
-        
+
         MarketplaceSetting::firstOrCreate(['module' => 'WhatsAppChat'], [
             'module' => 'WhatsAppChat',
             'title' => 'WhatsApp Chat Integration',
@@ -58,7 +58,7 @@ class MarketplaceSettingSeeder extends Seeder
                                 'screenshot' => '/packages/automas/WhatsAppChat/src/marketplace/image1.png'
                             ],
                             [
-                                'title' => 'Get Quick Responses on WhatsApp via Automas ERP',
+                                'title' => 'Get Quick Responses on WhatsApp via Automas CRM',
                                 'description' => 'Now, reaching out to us on WhatsApp is more convenient than ever! Whenever you send us a message, we receive it directly in our portal, allowing our team to reply instantly. There\'s no waiting or unnecessary delays, our responses will appear in your WhatsApp chat right away.',
                                 'keyPoints' => ['Messages received directly in portal', 'Instant team replies without delays', 'Responses appear in WhatsApp immediately', 'Quick, reliable, and accessible communication'],
                                 'screenshot' => '/packages/automas/WhatsAppChat/src/marketplace/image2.png'

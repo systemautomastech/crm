@@ -30,42 +30,42 @@ class MarketplaceSettingSeeder extends Seeder
         sort($screenshots);
 
         MarketplaceSetting::firstOrCreate(['module' => 'SalesOrder'], [
-            'module'          => 'SalesOrder',
-            'title'           => 'Sales Order Module Marketplace',
-            'subtitle'        => 'Comprehensive sales order management and delivery workflows for Automas ERP',
+            'module' => 'SalesOrder',
+            'title' => 'Sales Order Module Marketplace',
+            'subtitle' => 'Comprehensive sales order management and delivery workflows for Automas CRM',
             'config_sections' => [
                 'sections' => [
                     'hero' => [
-                        'variant'               => 'hero1',
-                        'title'                 => 'Sales Order Module for Automas ERP',
-                        'subtitle'              => 'Streamline order tracking, fulfillment, partial deliveries, and delivery challans.',
-                        'primary_button_text'   => 'Install Sales Order Module',
-                        'primary_button_link'   => '#install',
+                        'variant' => 'hero1',
+                        'title' => 'Sales Order Module for Automas CRM',
+                        'subtitle' => 'Streamline order tracking, fulfillment, partial deliveries, and delivery challans.',
+                        'primary_button_text' => 'Install Sales Order Module',
+                        'primary_button_link' => '#install',
                         'secondary_button_text' => 'Learn More',
                         'secondary_button_link' => '#learn',
-                        'image'                 => '/packages/automas/SalesOrder/src/marketplace/hero.png',
+                        'image' => '/packages/automas/SalesOrder/src/marketplace/hero.png',
                     ],
                     'modules' => [
-                        'variant'  => 'modules1',
-                        'title'    => 'Sales Order Module',
+                        'variant' => 'modules1',
+                        'title' => 'Sales Order Module',
                         'subtitle' => 'Enhance your workflow with robust order fulfillment tools',
                     ],
                     'dedication' => [
-                        'variant'     => 'dedication1',
-                        'title'       => 'Dedicated Sales Order Features',
+                        'variant' => 'dedication1',
+                        'title' => 'Dedicated Sales Order Features',
                         'description' => 'Our sales order module delivers complete control from order confirmation to final customer delivery.',
                         'subSections' => [
                             [
-                                'title'       => 'Order Creation & Management',
+                                'title' => 'Order Creation & Management',
                                 'description' => 'Create structured sales orders with customizable prefixes, detailed item breakdown, discount, and multi-tax calculations.',
-                                'keyPoints'   => ['Automated SO numbering system', 'Real-time stock checking', 'Quotation-to-Order conversion'],
-                                'screenshot'  => '/packages/automas/SalesOrder/src/marketplace/image1.png',
+                                'keyPoints' => ['Automated SO numbering system', 'Real-time stock checking', 'Quotation-to-Order conversion'],
+                                'screenshot' => '/packages/automas/SalesOrder/src/marketplace/image1.png',
                             ],
                             [
-                                'title'       => 'Delivery Challan & Partial Deliveries',
+                                'title' => 'Delivery Challan & Partial Deliveries',
                                 'description' => 'Support multiple partial deliveries per order, print official delivery challans, and maintain real-time delivery status.',
-                                'keyPoints'   => ['Full & Partial delivery tracking', 'Printable delivery challan documents', 'Automatic delivery status recalculation'],
-                                'screenshot'  => '/packages/automas/SalesOrder/src/marketplace/image2.png',
+                                'keyPoints' => ['Full & Partial delivery tracking', 'Printable delivery challan documents', 'Automatic delivery status recalculation'],
+                                'screenshot' => '/packages/automas/SalesOrder/src/marketplace/image2.png',
                             ],
                         ],
                     ],

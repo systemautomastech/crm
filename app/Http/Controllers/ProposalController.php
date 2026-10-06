@@ -546,7 +546,7 @@ class ProposalController extends Controller
 
         $proposal->load($this->proposalService->getRelations());
         $authorId = $proposal->creator_id ?? Auth::id();
-        $pages = $this->proposalService->getActivePages($authorId);
+        $pages = $this->proposalService->getActivePages($authorId, $proposal->created_by);
         $proposalSetting = ProposalSetting::getSettings(creatorId());
 
         return inertia('Proposal/Print', [

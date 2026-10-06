@@ -36,7 +36,7 @@ interface SettingsProps {
 
 export default function Settings({ settings, activeModules, selectedModule }: SettingsProps) {
     const { t } = useTranslation();
-    const { auth } = usePage<{auth: {user: any}}>().props;
+    const { auth } = usePage<{ auth: { user: any } }>().props;
 
     if (!auth.user?.permissions?.includes('manage-marketplace-settings')) {
         return (
@@ -233,30 +233,30 @@ export default function Settings({ settings, activeModules, selectedModule }: Se
                                     module.name.toLowerCase().includes(moduleSearchTerm.toLowerCase())
                                 )
                                 .map((module, index) => (
-                                <Button
-                                    key={index}
-                                    variant={activeModule === module.module ? "default" : "ghost"}
-                                    className="w-full justify-start gap-2"
-                                    onClick={() => {
-                                        if (activeModule !== module.module) {
-                                            setActiveModule(module.module);
-                                            setActiveModuleName(module.name);
-                                            setDataInitialized(false);
-                                            router.visit(route('marketplace.settings') + '?module=' + module.module, {
-                                                preserveScroll: true,
-                                                preserveState: true,
-                                            });
-                                        }
-                                    }}
-                                >
-                                    <div className="flex flex-col items-start">
-                                        <span className="text-sm">{module.name}</span>
-                                    </div>
-                                    {activeModule === module.module && (
-                                        <Edit3 className="h-3 w-3 ml-auto" />
-                                    )}
-                                </Button>
-                            ))}
+                                    <Button
+                                        key={index}
+                                        variant={activeModule === module.module ? "default" : "ghost"}
+                                        className="w-full justify-start gap-2"
+                                        onClick={() => {
+                                            if (activeModule !== module.module) {
+                                                setActiveModule(module.module);
+                                                setActiveModuleName(module.name);
+                                                setDataInitialized(false);
+                                                router.visit(route('marketplace.settings') + '?module=' + module.module, {
+                                                    preserveScroll: true,
+                                                    preserveState: true,
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex flex-col items-start">
+                                            <span className="text-sm">{module.name}</span>
+                                        </div>
+                                        {activeModule === module.module && (
+                                            <Edit3 className="h-3 w-3 ml-auto" />
+                                        )}
+                                    </Button>
+                                ))}
                         </CardContent>
                     </Card>
 
@@ -307,11 +307,10 @@ export default function Settings({ settings, activeModules, selectedModule }: Se
                                                     <button
                                                         key={section.key}
                                                         onClick={() => setActiveSection(section.key)}
-                                                        className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-all ${
-                                                            isActive
+                                                        className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-all ${isActive
                                                                 ? 'border-primary text-primary'
                                                                 : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <Icon className="h-4 w-4" />
                                                         {section.label}
@@ -363,7 +362,7 @@ export default function Settings({ settings, activeModules, selectedModule }: Se
                                                     <Input
                                                         value={getSectionData('hero').subtitle || ''}
                                                         onChange={(e) => updateSectionData('hero', 'subtitle', e.target.value)}
-                                                        placeholder={t('Extend your Automas ERP with powerful premium modules...')}
+                                                        placeholder={t('Extend your Automas CRM with powerful premium modules...')}
                                                     />
                                                 </div>
                                             </div>
@@ -440,18 +439,18 @@ export default function Settings({ settings, activeModules, selectedModule }: Se
                                                 <div>
                                                     <label className="text-sm font-medium">{t('Section Title')}</label>
                                                     <Input
-                                                value={getSectionData('modules').title || ''}
-                                                onChange={(e) => updateSectionData('modules', 'title', e.target.value)}
-                                                placeholder={t('Premium Packages')}
-                                            />
+                                                        value={getSectionData('modules').title || ''}
+                                                        onChange={(e) => updateSectionData('modules', 'title', e.target.value)}
+                                                        placeholder={t('Premium Packages')}
+                                                    />
                                                 </div>
                                                 <div>
                                                     <label className="text-sm font-medium">{t('Section Subtitle')}</label>
                                                     <Input
-                                                value={getSectionData('modules').subtitle || ''}
-                                                onChange={(e) => updateSectionData('modules', 'subtitle', e.target.value)}
-                                                placeholder={t('Discover powerful extensions...')}
-                                            />
+                                                        value={getSectionData('modules').subtitle || ''}
+                                                        onChange={(e) => updateSectionData('modules', 'subtitle', e.target.value)}
+                                                        placeholder={t('Discover powerful extensions...')}
+                                                    />
                                                 </div>
                                             </div>
                                             <div>
@@ -784,9 +783,8 @@ export default function Settings({ settings, activeModules, selectedModule }: Se
                                                                             section_order: currentOrder
                                                                         });
                                                                     }}
-                                                                    className={`flex items-center gap-3 p-4 border rounded-lg transition-all cursor-move ${
-                                                                        isEnabled ? 'bg-white border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-60'
-                                                                    }`}
+                                                                    className={`flex items-center gap-3 p-4 border rounded-lg transition-all cursor-move ${isEnabled ? 'bg-white border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-60'
+                                                                        }`}
                                                                 >
                                                                     <GripVertical className="h-5 w-5 text-gray-400" />
                                                                     <div className="flex-1 flex items-center justify-between">

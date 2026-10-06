@@ -3,13 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\Warehouse;
+use App\Services\WarehouseService;
 use App\Http\Requests\StoreWarehouseRequest;
 use App\Http\Requests\UpdateWarehouseRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class WarehouseController extends Controller
 {
+    protected WarehouseService $warehouseService;
+
+    public function __construct(WarehouseService $warehouseService)
+    {
+        $this->warehouseService = $warehouseService;
+    }
+
     public function index()
     {
         if(Auth::user()->can('manage-warehouses')){
@@ -118,9 +127,38 @@ class WarehouseController extends Controller
         }
     }
 
+
+    public function transfer(Request $request, Warehouse $warehouse)
+    {
+        if (Auth::user()->can('manage-stock') || Auth::user()->can('edit-warehouses') || Auth::user()->can('delete-warehouses')) {
+            $validated = $request->validate([
+                'target_warehouse_id' => 'required|exists:warehouses,id|different:' . $warehouse->id,
+            ]);
+
+            $targetWarehouse = Warehouse::findOrFail($validated['target_warehouse_id']);
+
+            $this->warehouseService->transferWarehouse($warehouse->id, $targetWarehouse->id);
+
+            return back()->with('success', __('Stock transferred successfully from :from to :to.', [
+                'from' => $warehouse->name,
+                'to' => $targetWarehouse->name,
+            ]));
+        }
+
+        return back()->with('error', __('Permission denied'));
+    }
+
     public function destroy(Warehouse $warehouse)
     {
         if(Auth::user()->can('delete-warehouses')){
+            $hasStock = $warehouse->stocks()->where('quantity', '>', 0)->exists();
+
+            if ($hasStock) {
+                return back()->with('error', __('Cannot delete warehouse with remaining stock. Please transfer stock first.'));
+            }
+
+            // Remove zero-quantity stock entries and delete warehouse
+            $warehouse->stocks()->delete();
             $warehouse->delete();
 
             return back()->with('success', __('The warehouse has been deleted.'));

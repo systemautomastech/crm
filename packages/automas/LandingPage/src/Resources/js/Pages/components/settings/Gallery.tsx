@@ -27,7 +27,7 @@ export default function Gallery({ data, getSectionData, updateSectionData, updat
                                 <Image className="h-5 w-5 text-indigo-600" />
                             </div>
                             <div>
-                                <CardTitle  className="text-base">{t('Image Gallery')}</CardTitle>
+                                <CardTitle className="text-base">{t('Image Gallery')}</CardTitle>
                                 <p className="text-sm text-gray-500">{t('Product showcase slider')}</p>
                             </div>
                         </div>
@@ -65,7 +65,7 @@ export default function Gallery({ data, getSectionData, updateSectionData, updat
                             <Input
                                 value={getSectionData('gallery').title || ''}
                                 onChange={(e) => updateSectionData('gallery', { title: e.target.value })}
-                                placeholder={t('See Automas ERP in Action')}
+                                placeholder={t('See Automas CRM in Action')}
                             />
                         </div>
                     </div>
@@ -77,7 +77,7 @@ export default function Gallery({ data, getSectionData, updateSectionData, updat
                             placeholder={t('Explore our intuitive interface and powerful features through real screenshots of our platform')}
                         />
                     </div>
-                    
+
                     <div className="space-y-4">
                         <Label>{t('Gallery Images')}</Label>
                         <Repeater

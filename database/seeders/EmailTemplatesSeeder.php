@@ -15,11 +15,11 @@ class EmailTemplatesSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = User::where('type','superadmin')->first();
+        $admin = User::where('type', 'superadmin')->first();
 
         $emailTemplate = [
             'New User',
-            'Plan Purchase', 
+            'Plan Purchase',
         ];
 
         $defaultTemplate = [
@@ -33,7 +33,7 @@ class EmailTemplatesSeeder extends Seeder
                     "Email": "email",
                     "Password": "password"
                   }',
-                  'lang' => [
+                'lang' => [
                     'ar' => '<div style="font-family:Segoe UI,Arial,Helvetica,sans-serif;background:#f4f6fb;padding:40px 20px;">
                         <div style="max-width:700px;margin:auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;box-shadow:0 10px 25px rgba(0,0,0,0.08);">
                             
@@ -784,7 +784,7 @@ class EmailTemplatesSeeder extends Seeder
                     "Plan Price": "plan_price",
                     "Plan Duration": "plan_duration"
                   }',
-                  'lang' => [
+                'lang' => [
                     'ar' => '<div style="font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;padding:40px;">
 
                     <div style="max-width:650px;margin:auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e6e8f0;box-shadow:0 12px 30px rgba(0,0,0,0.08);">
@@ -1345,7 +1345,7 @@ class EmailTemplatesSeeder extends Seeder
                     </div>
                     </div>
                     </div>',
-                                        'pt-BR' => '<div style="font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;padding:40px;">
+                    'pt-BR' => '<div style="font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;padding:40px;">
 
                     <div style="max-width:650px;margin:auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e6e8f0;box-shadow:0 12px 30px rgba(0,0,0,0.08);">
 
@@ -1619,35 +1619,32 @@ class EmailTemplatesSeeder extends Seeder
                     </div>',
                 ],
             ],
-              
+
         ];
 
-        foreach($emailTemplate as $eTemp)
-        {
-            $table = EmailTemplate::where('name',$eTemp)->where('module_name','general')->exists();
-            if(!$table)
-            {
-                $emailtemplate=  EmailTemplate::create(
+        foreach ($emailTemplate as $eTemp) {
+            $table = EmailTemplate::where('name', $eTemp)->where('module_name', 'general')->exists();
+            if (!$table) {
+                $emailtemplate = EmailTemplate::create(
                     [
                         'name' => $eTemp,
-                        'from' =>  !empty(env('APP_NAME')) ? env('APP_NAME') : 'Automas ERP',
+                        'from' => !empty(env('APP_NAME')) ? env('APP_NAME') : 'Automas CRM',
                         'module_name' => 'general',
                         'created_by' => $admin->id,
                         'creator_id' => $admin->id,
+                    ]
+                );
+                foreach ($defaultTemplate[$eTemp]['lang'] as $lang => $content) {
+                    EmailTemplateLang::create(
+                        [
+                            'parent_id' => $emailtemplate->id,
+                            'lang' => $lang,
+                            'subject' => $defaultTemplate[$eTemp]['subject'],
+                            'variables' => $defaultTemplate[$eTemp]['variables'],
+                            'content' => $content,
                         ]
                     );
-                    foreach($defaultTemplate[$eTemp]['lang'] as $lang => $content)
-                    {
-                        EmailTemplateLang::create(
-                            [
-                                'parent_id' => $emailtemplate->id,
-                                'lang' => $lang,
-                                'subject' => $defaultTemplate[$eTemp]['subject'],
-                                'variables' => $defaultTemplate[$eTemp]['variables'],
-                                'content' => $content,
-                            ]
-                        );
-                    }
+                }
             }
         }
 

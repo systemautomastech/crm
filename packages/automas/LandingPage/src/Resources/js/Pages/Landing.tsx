@@ -158,7 +158,7 @@ export default function Landing({ settings, plans, activeModules }: LandingProps
                 />
             </div>
 
-            <Head title={`${settings?.company_name || 'Automas ERP'} - All-in-One Business Management Solution`}>
+            <Head title={`${settings?.company_name || 'Automas CRM'} - All-in-One Business Management Solution`}>
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />

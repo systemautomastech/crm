@@ -7,13 +7,14 @@ import { usePageButtons } from '@/hooks/usePageButtons';
 import AuthenticatedLayout from "@/layouts/authenticated-layout";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Plus, Edit, Trash2, Warehouse as WarehouseIcon,
     CheckCircle2, XCircle, AlertTriangle, PackageSearch,
-    MapPin, Phone, Mail, CalendarDays, PackageX
+    MapPin, Phone, Mail, CalendarDays, PackageX, ArrowRight, AlertOctagon, Boxes, Loader2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SearchInput } from "@/components/ui/search-input";
@@ -54,6 +55,9 @@ export default function Index() {
     });
 
     const [reactivateTarget, setReactivateTarget] = useState<Warehouse | null>(null);
+    const [stockWarningTarget, setStockWarningTarget] = useState<Warehouse | null>(null);
+    const [targetWarehouseId, setTargetWarehouseId] = useState<string>('');
+    const [isTransferring, setIsTransferring] = useState<boolean>(false);
 
     const confirmReactivate = () => {
         if (!reactivateTarget) return;
@@ -241,7 +245,18 @@ export default function Index() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => openDeleteDialog(warehouse.id)}
+                                        // onClick={() => {
+                                        //     if ((warehouse.stock_quantity ?? 0) > 0 || (warehouse.product_count ?? 0) > 0) {
+                                        //         setStockWarningTarget(warehouse);
+                                        //     } else {
+                                        //         openDeleteDialog(warehouse.id);
+                                        //     }
+                                        // }}
+                                        onClick={() => {
+                                            
+                                                openDeleteDialog(warehouse.id);
+                                        
+                                        }}
                                         className="h-8 w-8 p-0 text-red-600"
                                     >
                                         <Trash2 className="h-4 w-4" />
@@ -411,6 +426,158 @@ export default function Index() {
                 confirmText={t('Reactivate')}
                 onConfirm={confirmReactivate}
             />
+
+            <Dialog open={!!stockWarningTarget} onOpenChange={(open) => {
+                if (!open) {
+                    setStockWarningTarget(null);
+                    setTargetWarehouseId('');
+                }
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {t('Cannot Delete Warehouse')}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {/* Warning Box */}
+                        <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-amber-800 text-sm">
+                            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="leading-relaxed">
+                                {t('This warehouse contains active stock. To proceed with deletion, please transfer all remaining inventory to another warehouse.')}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-gray-50 border text-xs">
+                            <div>
+                                <span className="text-gray-500 font-medium block">{t('Total Products')}</span>
+                                <span className="text-sm font-semibold text-gray-900">{stockWarningTarget?.product_count ?? 0}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 font-medium block">{t('Total Stock Units')}</span>
+                                <span className="text-sm font-semibold text-gray-900">{stockWarningTarget?.stock_quantity ?? 0}</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-gray-700">
+                                {t('Transfer To Warehouse')} <span className="text-red-500">*</span>
+                            </label>
+                            <Select
+                                value={targetWarehouseId}
+                                onValueChange={setTargetWarehouseId}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder={t('Select target warehouse')} />
+                                </SelectTrigger>
+                                <SelectContent searchable searchPlaceholder={t('Search warehouse...')}>
+                                    {warehouses
+                                        .filter((w) => w.id !== stockWarningTarget?.id && w.is_active)
+                                        .map((w) => (
+                                            <SelectItem key={w.id} value={String(w.id)}>
+                                                {w.name} {w.city ? `(${w.city})` : ''}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+
+                            {/* Information-Rich Minimal Target Warehouse Details Card */}
+                            {(() => {
+                                const selectedTarget = warehouses.find(w => String(w.id) === targetWarehouseId);
+                                if (!selectedTarget) return null;
+                                return (
+                                    <div className="mt-2.5 p-3 rounded-lg border border-gray-200/80 bg-gray-50/70 dark:bg-gray-900/50 space-y-2 text-xs">
+                                        {/* Header Row */}
+                                        <div className="flex items-center justify-between pb-1 border-b border-gray-200/60 dark:border-gray-800 font-semibold text-gray-900 dark:text-gray-100">
+                                            <span className="flex items-center gap-1.5">
+                                                <WarehouseIcon className="h-3.5 w-3.5 text-gray-500" />
+                                                {selectedTarget.name}
+                                            </span>
+                                            {selectedTarget.city && (
+                                                <span className="text-[11px] font-normal text-gray-500 bg-gray-200/60 dark:bg-gray-800 px-2 py-0.5 rounded">
+                                                    {selectedTarget.city}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Address Row */}
+                                        {selectedTarget.address && (
+                                            <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 text-[11px]">
+                                                <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                                <span className="truncate">{selectedTarget.address}</span>
+                                            </div>
+                                        )}
+
+                                        {/* Grid Stats & Contact Info */}
+                                        <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 text-[11px] text-gray-600 dark:text-gray-400 pt-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <PackageSearch className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                                <span>{t('Products')}: <strong className="text-gray-900 dark:text-gray-100">{selectedTarget.product_count ?? 0}</strong></span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Boxes className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                                <span>{t('Stock')}: <strong className="text-gray-900 dark:text-gray-100">{selectedTarget.stock_quantity ?? 0}</strong></span>
+                                            </div>
+                                            {selectedTarget.phone && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                                    <span className="truncate">{selectedTarget.phone}</span>
+                                                </div>
+                                            )}
+                                            {selectedTarget.email && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Mail className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                                    <span className="truncate">{selectedTarget.email}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isTransferring}
+                                onClick={() => {
+                                    setStockWarningTarget(null);
+                                    setTargetWarehouseId('');
+                                }}
+                            >
+                                {t('Cancel')}
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={!targetWarehouseId || isTransferring}
+                                onClick={() => {
+                                    if (!stockWarningTarget || !targetWarehouseId || isTransferring) return;
+                                    const fromId = stockWarningTarget.id;
+                                    const toId = targetWarehouseId;
+                                    setIsTransferring(true);
+                                    router.post(route('warehouses.transfer', fromId), {
+                                        target_warehouse_id: toId,
+                                    }, {
+                                        onSuccess: () => {
+                                            setStockWarningTarget(null);
+                                            setTargetWarehouseId('');
+                                        },
+                                        onFinish: () => {
+                                            setIsTransferring(false);
+                                        }
+                                    });
+                                }}
+                                className="bg-amber-500 hover:bg-amber-600 text-white font-medium gap-2"
+                            >
+                                {isTransferring && <Loader2 className="h-4 w-4 animate-spin" />}
+                                {isTransferring ? t('Transferring...') : t('Transfer Stock')}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </AuthenticatedLayout>
     );
 }

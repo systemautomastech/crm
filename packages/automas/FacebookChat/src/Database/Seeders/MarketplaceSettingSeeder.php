@@ -13,7 +13,7 @@ class MarketplaceSettingSeeder extends Seeder
         // Get all available screenshots from marketplace directory
         $marketplaceDir = __DIR__ . '/../../marketplace';
         $screenshots = [];
-        
+
         if (File::exists($marketplaceDir)) {
             $files = File::files($marketplaceDir);
             foreach ($files as $file) {
@@ -22,19 +22,19 @@ class MarketplaceSettingSeeder extends Seeder
                 }
             }
         }
-        
+
         sort($screenshots);
-        
+
         MarketplaceSetting::firstOrCreate(['module' => 'FacebookChat'], [
             'module' => 'FacebookChat',
             'title' => 'Facebook Chat Integration',
-            'subtitle' => 'Centralize your Facebook Messenger communications through Automas ERP, delivering rapid responses and seamless customer engagement',
+            'subtitle' => 'Centralize your Facebook Messenger communications through Automas CRM, delivering rapid responses and seamless customer engagement',
             'config_sections' => [
                 'sections' => [
                     'hero' => [
                         'variant' => 'hero1',
                         'title' => 'Facebook Chat Integration',
-                        'subtitle' => 'The Facebook Chat Integration on Automas ERP allows businesses to handle all their customer conversations in one place without needing to switch between platforms. Instead of managing messages separately on Facebook Messenger, you can respond to customer queries, provide support, and engage with users directly through the Dash portal.',
+                        'subtitle' => 'The Facebook Chat Integration on Automas CRM allows businesses to handle all their customer conversations in one place without needing to switch between platforms. Instead of managing messages separately on Facebook Messenger, you can respond to customer queries, provide support, and engage with users directly through the Dash portal.',
                         'primary_button_text' => 'Install Facebook Chat Module',
                         'primary_button_link' => '#install',
                         'secondary_button_text' => 'Learn More',
@@ -53,7 +53,7 @@ class MarketplaceSettingSeeder extends Seeder
                         'subSections' => [
                             [
                                 'title' => 'Configuration & Setup',
-                                'description' => 'Connecting your Facebook account with Automas ERP is quick and hassle-free. All you need to do is enter your Client ID and Access Token, and your Facebook Chat will be linked to the portal. Once set up, all incoming messages will automatically sync, allowing your team to respond instantly.',
+                                'description' => 'Connecting your Facebook account with Automas CRM is quick and hassle-free. All you need to do is enter your Client ID and Access Token, and your Facebook Chat will be linked to the portal. Once set up, all incoming messages will automatically sync, allowing your team to respond instantly.',
                                 'keyPoints' => ['Quick and hassle-free setup', 'Enter Client ID and Access Token', 'Automatic message synchronization', 'Instant response capability'],
                                 'screenshot' => '/packages/automas/FacebookChat/src/marketplace/image1.png'
                             ],

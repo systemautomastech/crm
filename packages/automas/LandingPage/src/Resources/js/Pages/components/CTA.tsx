@@ -24,7 +24,7 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
     const [priceType, setPriceType] = useState(pricingSettings.default_price_type || 'monthly');
 
     const title = sectionData.title || 'Ready to Transform Your Business?';
-    const subtitle = sectionData.subtitle || 'Join thousands of businesses already using Automas ERP to streamline operations, cut overhead costs, and accelerate growth.';
+    const subtitle = sectionData.subtitle || 'Join thousands of businesses already using Automas CRM to streamline operations, cut overhead costs, and accelerate growth.';
     const primaryButtonText = sectionData.primary_button || 'Start Free Trial';
     const secondaryButtonText = sectionData.secondary_button || 'Talk to Sales';
 
@@ -98,8 +98,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                 onClick={() => setPriceType('monthly')}
                                 style={priceType === 'monthly' ? { backgroundColor: '#ffffff', color: '#0f172a' } : {}}
                                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all ${priceType === 'monthly'
-                                        ? 'shadow-md'
-                                        : 'text-slate-600 hover:text-slate-900'
+                                    ? 'shadow-md'
+                                    : 'text-slate-600 hover:text-slate-900'
                                     }`}
                             >
                                 {t('Monthly Billing')}
@@ -108,8 +108,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                 onClick={() => setPriceType('yearly')}
                                 style={priceType === 'yearly' ? { backgroundColor: '#ffffff', color: '#0f172a' } : {}}
                                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all ${priceType === 'yearly'
-                                        ? 'shadow-md'
-                                        : 'text-slate-600 hover:text-slate-900'
+                                    ? 'shadow-md'
+                                    : 'text-slate-600 hover:text-slate-900'
                                     }`}
                             >
                                 {t('Yearly Billing')}
@@ -134,8 +134,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                     key={plan.id}
                                     style={isFeatured ? { borderColor: primaryColor } : {}}
                                     className={`rounded-2xl p-8 transition-all duration-300 flex flex-col justify-between ${isFeatured
-                                            ? 'bg-[#0A1E42] text-white shadow-2xl ring-2 relative md:-translate-y-3'
-                                            : 'bg-white text-slate-900 border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md'
+                                        ? 'bg-[#0A1E42] text-white shadow-2xl ring-2 relative md:-translate-y-3'
+                                        : 'bg-white text-slate-900 border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md'
                                         }`}
                                 >
                                     {isFeatured && (
@@ -192,8 +192,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                                 .map((module: any) => {
                                                     const isEnabled = plan.modules?.includes(module.module);
                                                     return (
-                                                        <li 
-                                                            key={module.module} 
+                                                        <li
+                                                            key={module.module}
                                                             className={`flex items-center gap-3 ${!isEnabled ? (isFeatured ? 'text-slate-400/70' : 'text-slate-400 opacity-60') : ''}`}
                                                         >
                                                             {isEnabled ? (
@@ -221,8 +221,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                         href={route('register')}
                                         style={isFeatured ? { backgroundColor: primaryColor } : {}}
                                         className={`w-full py-3.5 rounded-xl text-center text-sm font-semibold transition-all shadow-xs ${isFeatured
-                                                ? 'text-white hover:opacity-90'
-                                                : 'bg-[#0A1E42] text-white hover:bg-[#122A52]'
+                                            ? 'text-white hover:opacity-90'
+                                            : 'bg-[#0A1E42] text-white hover:bg-[#122A52]'
                                             }`}
                                     >
                                         {t('Select Plan')}
@@ -238,8 +238,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                     key={idx}
                                     style={isFeatured ? { borderColor: primaryColor } : {}}
                                     className={`rounded-2xl p-8 transition-all duration-300 flex flex-col justify-between ${isFeatured
-                                            ? 'bg-[#0A1E42] text-white shadow-xl ring-2 relative md:-translate-y-3'
-                                            : 'bg-white text-slate-900 border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md'
+                                        ? 'bg-[#0A1E42] text-white shadow-xl ring-2 relative md:-translate-y-3'
+                                        : 'bg-white text-slate-900 border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md'
                                         }`}
                                 >
                                     {isFeatured && (
@@ -291,8 +291,8 @@ export default function CTA({ settings, plans: propPlans = [], activeModules = [
                                         href={route('register')}
                                         style={isFeatured ? { backgroundColor: primaryColor } : {}}
                                         className={`w-full py-3.5 rounded-xl text-center text-sm font-semibold transition-all shadow-xs ${isFeatured
-                                                ? 'text-white hover:opacity-90'
-                                                : 'bg-[#0A1E42] text-white hover:bg-[#122A52]'
+                                            ? 'text-white hover:opacity-90'
+                                            : 'bg-[#0A1E42] text-white hover:bg-[#122A52]'
                                             }`}
                                     >
                                         {t(plan.buttonText || 'Get Started')}

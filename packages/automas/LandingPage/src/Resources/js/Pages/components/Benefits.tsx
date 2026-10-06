@@ -23,7 +23,7 @@ export default function Benefits({ settings }: BenefitsProps) {
     const primaryColor = colors.primary || 'var(--color-primary)';
     const secondaryColor = colors.secondary || 'var(--color-secondary)';
 
-    const sectionTitle = sectionData.title || 'Why Choose Automas ERP?';
+    const sectionTitle = sectionData.title || 'Why Choose Automas CRM?';
     const sectionSubtitle = sectionData.subtitle || 'Built for modern enterprises that demand reliability, scalability, and seamless integration.';
 
     const defaultWhyChooseUs = [
@@ -50,7 +50,7 @@ export default function Benefits({ settings }: BenefitsProps) {
         })
         : defaultWhyChooseUs;
 
-    const galleryTitle = galleryData.title || 'See Automas ERP in Action';
+    const galleryTitle = galleryData.title || 'See Automas CRM in Action';
     const gallerySubtitle = galleryData.subtitle || 'Explore our intuitive interface and powerful features through real screenshots of our platform.';
 
     const galleryImages: string[] = galleryData.images && galleryData.images.length > 0
@@ -73,8 +73,8 @@ export default function Benefits({ settings }: BenefitsProps) {
 
     const faqs = [
         {
-            q: 'What is Automas ERP?',
-            a: 'Automas ERP is an all-in-one cloud business management system that connects Project Management, Accounting, HRM, CRM, POS, and Inventory into a single unified platform.'
+            q: 'What is Automas CRM?',
+            a: 'Automas CRM is an all-in-one cloud business management system that connects Project Management, Accounting, HRM, CRM, POS, and Inventory into a single unified platform.'
         },
         {
             q: 'How does our Call Center feature work?',
@@ -89,14 +89,14 @@ export default function Benefits({ settings }: BenefitsProps) {
             a: 'We offer flexible subscription plans: choose fixed monthly/yearly packages for full module access, or opt for usage-based pricing where you pay based on active team members and storage consumption.'
         },
         {
-            q: 'What is an IP number and how is it used in Automas ERP?',
-            a: 'An IP (Internet Protocol) address is a unique numerical identifier assigned to your device on a network. In Automas ERP, IP addresses are used for security logging, restrict staff logins to whitelisted office networks, and prevent unauthorized account access.'
+            q: 'What is an IP number and how is it used in Automas CRM?',
+            a: 'An IP (Internet Protocol) address is a unique numerical identifier assigned to your device on a network. In Automas CRM, IP addresses are used for security logging, restrict staff logins to whitelisted office networks, and prevent unauthorized account access.'
         },
     ];
 
     return (
         <>
-            {/* Why Choose Automas ERP */}
+            {/* Why Choose Automas CRM */}
             <section className="relative py-6 lg:py-24 bg-transparent">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8">
                     <div className="text-center mb-16">
@@ -296,7 +296,7 @@ export default function Benefits({ settings }: BenefitsProps) {
                                             e.currentTarget.src = '/storage/media/faq.png';
                                         }
                                     }}
-                                    alt="Automas ERP FAQ"
+                                    alt="Automas CRM FAQ"
                                     className="w-full h-auto max-h-[560px] object-contain rounded-2xl"
                                 />
                             </div>

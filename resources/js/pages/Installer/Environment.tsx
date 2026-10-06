@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 export default function Environment({ timezones }: { timezones: string[] }) {
     const { t } = useTranslation();
     const { data, setData, post, processing, errors } = useForm({
-        app_name: 'Automas ERP System',
+        app_name: 'Automas CRM System',
         app_url: window.location.origin,
         app_timezone: 'UTC',
         db_connection: 'mysql',
@@ -51,25 +51,25 @@ export default function Environment({ timezones }: { timezones: string[] }) {
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={submit} className="space-y-6">
-                            {processing && (
-                                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                    <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                                        <p>{t('Configuring environment...')}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {Object.keys(errors).length > 0 && (
-                                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-                                    <h3 className="font-semibold text-red-800 mb-2">Validation Errors:</h3>
-                                    {Object.entries(errors).map(([key, message]) => (
-                                        <div key={key} className="text-sm text-red-700 mb-1">
-                                            <strong>{key}:</strong> {Array.isArray(message) ? message[0] : message}
+                                {processing && (
+                                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                        <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                                            <p>{t('Configuring environment...')}</p>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    </div>
+                                )}
+
+                                {Object.keys(errors).length > 0 && (
+                                    <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                                        <h3 className="font-semibold text-red-800 mb-2">Validation Errors:</h3>
+                                        {Object.entries(errors).map(([key, message]) => (
+                                            <div key={key} className="text-sm text-red-700 mb-1">
+                                                <strong>{key}:</strong> {Array.isArray(message) ? message[0] : message}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     <Label htmlFor="app_name">{t('Application Name')}</Label>
                                     <Input

@@ -34,7 +34,7 @@ class MarketplaceSettingSeeder extends Seeder
                 'sections' => [
                     'hero' => [
                         'variant' => 'hero1',
-                        'title' => 'Landing Page Builder for Automas ERP',
+                        'title' => 'Landing Page Builder for Automas CRM',
                         'subtitle' => 'Create stunning, high-converting landing pages with our powerful drag-and-drop builder. No coding required - just drag, drop, and publish professional pages in minutes.',
                         'primary_button_text' => 'Install Builder',
                         'primary_button_link' => '#install',
