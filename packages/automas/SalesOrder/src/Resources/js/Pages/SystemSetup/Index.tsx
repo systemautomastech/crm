@@ -39,18 +39,18 @@ export default function Index() {
     const [isLoading, setIsLoading] = useState(false);
 
     const [formData, setFormData] = useState({
-        so_prefix:           settings?.so_prefix || 'SO',
-        so_starting_number:  settings?.so_starting_number || '1',
-        dc_prefix:           settings?.dc_prefix || 'DC',
-        dc_starting_number:  settings?.dc_starting_number || '1',
-        logo_image:          settings?.logo_image || '',
-        show_logo:           settings?.show_logo !== 'off',
-        bg_letterhead:       settings?.bg_letterhead || '',
-        enable_letterhead:   settings?.enable_letterhead === 'on',
-        default_terms:       settings?.default_terms ?? '',
-        default_notes:       settings?.default_notes ?? '',
-        footer_note:         settings?.footer_note ?? '',
-        template_color:      settings?.template_color ?? '#3B82F6',
+        so_prefix: settings?.so_prefix || 'SO',
+        so_starting_number: settings?.so_starting_number || '1',
+        dc_prefix: settings?.dc_prefix || 'DC',
+        dc_starting_number: settings?.dc_starting_number || '1',
+        logo_image: settings?.logo_image || '',
+        show_logo: settings?.show_logo !== 'off',
+        bg_letterhead: settings?.bg_letterhead || '',
+        enable_letterhead: settings?.enable_letterhead === 'on',
+        default_terms: settings?.default_terms ?? '',
+        default_notes: settings?.default_notes ?? '',
+        footer_note: settings?.footer_note ?? '',
+        template_color: settings?.template_color ?? '#3B82F6',
     });
 
     useFlashMessages();
@@ -66,7 +66,7 @@ export default function Index() {
         const payload = {
             settings: {
                 ...formData,
-                show_logo:         formData.show_logo ? 'on' : 'off',
+                show_logo: formData.show_logo ? 'on' : 'off',
                 enable_letterhead: formData.enable_letterhead ? 'on' : 'off',
             }
         };

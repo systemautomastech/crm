@@ -30,6 +30,11 @@ export const productserviceCompanyMenu = (t: (key: string) => string) => [
                 title: t('System Setup'),
                 href: route('product-service.item-categories.index'),
                 permission: 'manage-product-service-item',
+                activeRoutes: [
+                    'product-service.item-categories.*',
+                    'product-service.taxes.*',
+                    'product-service.units.*',
+                ],
             },
         ],
     },

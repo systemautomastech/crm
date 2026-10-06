@@ -5,9 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Warehouse;
 use App\Http\Requests\StoreWarehouseRequest;
 use App\Http\Requests\UpdateWarehouseRequest;
-use App\Events\CreateWarehouse;
-use App\Events\DestroyWarehouse;
-use App\Events\UpdateWarehouse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -92,9 +89,6 @@ class WarehouseController extends Controller
             $warehouse->created_by = creatorId();
             $warehouse->save();
 
-            // Dispatch event for packages to handle their fields
-            CreateWarehouse::dispatch($request, $warehouse);
-
             return redirect()->route('warehouses.index')->with('success', __('The warehouse has been created successfully.'));
         }
         else{
@@ -117,9 +111,6 @@ class WarehouseController extends Controller
             $warehouse->is_active = $validated['is_active'];
             $warehouse->save();
 
-            // Dispatch event for packages to handle their fields
-            UpdateWarehouse::dispatch($request, $warehouse);
-
             return back()->with('success', __('The warehouse details are updated successfully.'));
         }
         else{
@@ -130,8 +121,6 @@ class WarehouseController extends Controller
     public function destroy(Warehouse $warehouse)
     {
         if(Auth::user()->can('delete-warehouses')){
-            DestroyWarehouse::dispatch($warehouse);
-
             $warehouse->delete();
 
             return back()->with('success', __('The warehouse has been deleted.'));

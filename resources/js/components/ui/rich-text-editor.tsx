@@ -83,18 +83,18 @@ export const LineHeight = Extension.create({
     return {
       setLineHeight:
         (lineHeight: string) =>
-        ({ commands }: any) => {
-          return this.options.types.every((type: string) =>
-            commands.updateAttributes(type, { lineHeight })
-          );
-        },
+          ({ commands }: any) => {
+            return this.options.types.every((type: string) =>
+              commands.updateAttributes(type, { lineHeight })
+            );
+          },
       unsetLineHeight:
         () =>
-        ({ commands }: any) => {
-          return this.options.types.every((type: string) =>
-            commands.resetAttributes(type, 'lineHeight')
-          );
-        },
+          ({ commands }: any) => {
+            return this.options.types.every((type: string) =>
+              commands.resetAttributes(type, 'lineHeight')
+            );
+          },
     };
   },
 });
@@ -146,7 +146,7 @@ function TableGridPicker({ editor, onInsertTable }: TableGridPickerProps) {
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               {t('Table Management')}
             </div>
-            
+
             {/* Rows Controls */}
             <div className="grid grid-cols-2 gap-1.5">
               <Button
@@ -277,7 +277,7 @@ function TableGridPicker({ editor, onInsertTable }: TableGridPickerProps) {
           <div className="text-xs font-bold text-slate-700 mb-2 text-center">
             {hoveredRows > 0 && hoveredCols > 0 ? `${hoveredRows} × ${hoveredCols} ${t('Table')}` : t('Insert New Table')}
           </div>
-          <div 
+          <div
             className="grid gap-1 justify-center"
             style={{ gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))` }}
             onMouseLeave={() => {
@@ -300,8 +300,8 @@ function TableGridPicker({ editor, onInsertTable }: TableGridPickerProps) {
                     onClick={() => handleSelect(r, c)}
                     className={cn(
                       'w-5 h-5 border rounded-xs cursor-pointer transition-colors',
-                      isSelected 
-                        ? 'bg-blue-500 border-blue-600' 
+                      isSelected
+                        ? 'bg-blue-500 border-blue-600'
                         : 'bg-slate-50 border-slate-300 hover:border-slate-400'
                     )}
                   />

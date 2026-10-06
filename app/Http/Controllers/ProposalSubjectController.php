@@ -29,7 +29,7 @@ class ProposalSubjectController extends Controller
             return response()->json(['subjects' => $subjects]);
         }
 
-        return Inertia::render('SalesProposalSetup/Subjects/Index', [
+        return Inertia::render('ProposalSetup/Subjects/Index', [
             'subjects' => $subjects,
         ]);
     }
@@ -53,8 +53,8 @@ class ProposalSubjectController extends Controller
 
         $validated = $request->validated();
 
-        $subject             = new ProposalSubject();
-        $subject->name       = $validated['name'];
+        $subject = new ProposalSubject();
+        $subject->name = $validated['name'];
         $subject->creator_id = Auth::id();
         $subject->created_by = creatorId();
         $subject->save();

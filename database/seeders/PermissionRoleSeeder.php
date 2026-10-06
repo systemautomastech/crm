@@ -191,7 +191,7 @@ class PermissionRoleSeeder extends Seeder
 
             // Sales Proposal permissions
             ['name' => 'manage-sales-proposals', 'module' => 'sales-proposals', 'label' => 'Manage Sales Proposals'],
-            ['name' => 'create-sales-proposals', 'module' => 'sales-proposals', 'label' => 'Create Sales Proposals'],
+            ['name' => 'create-sales-proposals', 'module' => 'sales-proposals', 'label' => 'Create Proposals'],
             ['name' => 'edit-sales-proposals', 'module' => 'sales-proposals', 'label' => 'Edit Sales Proposals'],
             ['name' => 'delete-sales-proposals', 'module' => 'sales-proposals', 'label' => 'Delete Sales Proposals'],
             ['name' => 'view-sales-proposals', 'module' => 'sales-proposals', 'label' => 'View Sales Proposals'],

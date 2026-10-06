@@ -109,7 +109,7 @@ export default function SalesOrderDashboard({
                 {/* Header Title Section */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-slate-900">{t('Sales Order Dashboard')}</h1>
+                        <h1 className="text-xl font-black tracking-tight text-slate-900">{t('Sales Order Dashboard')}</h1>
                         <p className="text-xs font-semibold text-slate-500 mt-0.5">
                             {t('Overview of sales orders, delivery challan charts, recent dispatches, and delivery schedule.')}
                         </p>

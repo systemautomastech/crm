@@ -52,6 +52,9 @@ export const getCompanyMenu = (t: (key: string) => string): NavItem[] => [
                 title: t('System Setup'),
                 href: route('proposal-setup.index'),
                 permission: 'manage-proposal-system-setup',
+                activeRoutes: [
+                    'proposal-setup.*',
+                ],
             },
         ],
     },

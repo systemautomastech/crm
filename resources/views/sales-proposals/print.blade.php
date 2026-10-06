@@ -837,32 +837,7 @@
                     'page_type' => $c->page_type ?? 'content',
                     'background_image' => $c->background_image ?? null,
                     'order' => $c->order ?? 1,
-                ];
             })->toArray();
-        } elseif (\Illuminate\Support\Facades\Schema::hasTable('sales_proposal_contents')) {
-            $dbContents = \App\Models\SalesProposalContent::where('proposal_id', $proposal->id)->orderBy('order')->get();
-            if ($dbContents && $dbContents->count() > 0) {
-                $customContentPages = $dbContents->map(function ($c) {
-                    $rawVal = $c->content ?? $c->proposal_content ?? '';
-                    $decoded = is_string($rawVal) ? json_decode($rawVal, true) : null;
-                    if (is_array($decoded)) {
-                        return [
-                            'title' => $decoded['title'] ?? $c->title ?? '',
-                            'content' => $decoded['content'] ?? $rawVal,
-                            'page_type' => $decoded['page_type'] ?? $c->page_type ?? 'content',
-                            'background_image' => $decoded['background_image'] ?? $c->background_image ?? null,
-                            'order' => $c->order ?? 1,
-                        ];
-                    }
-                    return [
-                        'title' => $c->title ?? '',
-                        'content' => $rawVal,
-                        'page_type' => $c->page_type ?? 'content',
-                        'background_image' => $c->background_image ?? null,
-                        'order' => $c->order ?? 1,
-                    ];
-                })->toArray();
-            }
         }
 
         if (empty($customContentPages)) {
@@ -876,18 +851,18 @@
 
         if (empty($customContentPages)) {
             $creatorId = $proposal->created_by ?? null;
-            $defaultPages = \App\Models\ProposalDefaultPage::where('created_by', $creatorId)
+            $pages = \App\Models\ProposalPage::where('created_by', $creatorId)
                 ->where('is_active', 1)
                 ->orderBy('sort_order')
                 ->get();
 
-            if ($defaultPages->isEmpty()) {
-                $defaultPages = \App\Models\ProposalDefaultPage::where('is_active', 1)
+            if ($pages->isEmpty()) {
+                $pages = \App\Models\ProposalPage::where('is_active', 1)
                     ->orderBy('sort_order')
                     ->get();
             }
 
-            $customContentPages = $defaultPages->map(function ($p) {
+            $customContentPages = $pages->map(function ($p) {
                 return [
                     'title' => $p->title,
                     'content' => $p->content,
@@ -1397,7 +1372,7 @@
                         return;
                     }
 
-                    const titleEl = tag !== 'table' ? el.querySelector('.proposal-section-title, .quotation-section-title, .font-bold, h1, h2, h3, h4, h5, h6') : null;
+                    const titleEl = tag !== 'table' ? el.querySelector('.proposal-section-title, .font-bold, h1, h2, h3, h4, h5, h6') : null;
                     const titleHtml = titleEl ? titleEl.outerHTML : '';
 
                     if (bodyRows.length > 0) {
@@ -1472,7 +1447,7 @@
             let printContainer = document.getElementById('boxes');
             if (!printContainer) return;
 
-            let sheets = Array.from(printContainer.querySelectorAll('.proposal-preview-sheet, .quotation-preview-sheet'));
+            let sheets = Array.from(printContainer.querySelectorAll('.proposal-preview-sheet'));
             if (sheets.length === 0) return;
 
             let measureBox = document.createElement('div');
@@ -1482,7 +1457,7 @@
             let newSheets = [];
 
             sheets.forEach(sheet => {
-                let body = sheet.querySelector('.proposal-page__body, .quotation-page__body');
+                let body = sheet.querySelector('.proposal-page__body');
                 if (!body) {
                     newSheets.push(sheet);
                     return;
@@ -1498,7 +1473,7 @@
                     pages.forEach((pageHtml) => {
                         let sheetClone = sheet.cloneNode(true);
                         sheetClone.removeAttribute('id');
-                        let cloneBody = sheetClone.querySelector('.proposal-page__body, .quotation-page__body');
+                        let cloneBody = sheetClone.querySelector('.proposal-page__body');
                         if (cloneBody) {
                             cloneBody.innerHTML = pageHtml;
                         }

@@ -19,9 +19,9 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\MetaController;
 use App\Http\Controllers\UserGroupController;
-use App\Http\Controllers\SalesProposalController;
+use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\ProposalSetupController;
-use App\Http\Controllers\ProposalDefaultPageController;
+use App\Http\Controllers\ProposalPageController;
 use App\Http\Controllers\ProposalSubjectController;
 use App\Http\Controllers\SalesInvoiceController;
 use App\Http\Controllers\SalesReturnController;
@@ -124,27 +124,27 @@ Route::middleware(['auth', 'verified', 'PlanModuleCheck'])->group(function () {
 
     // Proposal Routes
     Route::middleware(['PlanModuleCheck:ProductService'])->group(function () {
-        Route::resource('sales-proposals', SalesProposalController::class);
-        Route::get('sales-proposals/{salesProposal}/print', [SalesProposalController::class, 'print'])->name('sales-proposals.print');
-        Route::get('sales-proposals/{salesProposal}/download-pdf', [SalesProposalController::class, 'downloadPdf'])->name('sales-proposals.download-pdf');
-        Route::post('sales-proposals/{salesProposal}/sent', [SalesProposalController::class, 'sent'])->name('sales-proposals.sent');
-        Route::post('sales-proposals/{salesProposal}/accept', [SalesProposalController::class, 'accept'])->name('sales-proposals.accept');
-        Route::post('sales-proposals/{salesProposal}/reject', [SalesProposalController::class, 'reject'])->name('sales-proposals.reject');
-        Route::post('sales-proposals/{salesProposal}/convert-to-sales-order', [SalesProposalController::class, 'convertToSalesOrder'])->name('sales-proposals.convert-to-sales-order');
-        Route::post('sales-proposals/{salesProposal}/convert-to-invoice', [SalesProposalController::class, 'convertToInvoice'])->name('sales-proposals.convert-to-invoice');
-        Route::get('sales-proposals/{salesProposal}/convert-details', [SalesProposalController::class, 'convertDetails'])->name('sales-proposals.convert-details');
-        Route::get('sales-proposals/warehouse/products', [SalesProposalController::class, 'getWarehouseProducts'])->name('sales-proposals.warehouse.products');
-        Route::get('sales-proposals/services/list', [SalesProposalController::class, 'getServices'])->name('sales-proposals.services');
+        Route::resource('sales-proposals', ProposalController::class)->parameters(['sales-proposals' => 'proposal']);
+        Route::get('sales-proposals/{proposal}/print', [ProposalController::class, 'print'])->name('sales-proposals.print');
+        Route::get('sales-proposals/{proposal}/download-pdf', [ProposalController::class, 'downloadPdf'])->name('sales-proposals.download-pdf');
+        Route::post('sales-proposals/{proposal}/sent', [ProposalController::class, 'sent'])->name('sales-proposals.sent');
+        Route::post('sales-proposals/{proposal}/accept', [ProposalController::class, 'accept'])->name('sales-proposals.accept');
+        Route::post('sales-proposals/{proposal}/reject', [ProposalController::class, 'reject'])->name('sales-proposals.reject');
+        Route::post('sales-proposals/{proposal}/convert-to-sales-order', [ProposalController::class, 'convertToSalesOrder'])->name('sales-proposals.convert-to-sales-order');
+        Route::post('sales-proposals/{proposal}/convert-to-invoice', [ProposalController::class, 'convertToInvoice'])->name('sales-proposals.convert-to-invoice');
+        Route::get('sales-proposals/{proposal}/convert-details', [ProposalController::class, 'convertDetails'])->name('sales-proposals.convert-details');
+        Route::get('sales-proposals/warehouse/products', [ProposalController::class, 'getWarehouseProducts'])->name('sales-proposals.warehouse.products');
+        Route::get('sales-proposals/services/list', [ProposalController::class, 'getServices'])->name('sales-proposals.services');
 
         // Proposal Setup & Default Pages
         Route::get('sales-proposal/settings', [ProposalSetupController::class, 'index'])->name('proposal-setup.index');
         Route::post('sales-proposal/settings', [ProposalSetupController::class, 'updateSettings'])->name('proposal-setup.update');
-        Route::post('sales-proposal/default-pages/reorder', [ProposalDefaultPageController::class, 'reorder'])->name('proposal-setup.default-pages.reorder');
-        Route::get('sales-proposal/default-pages/create', [ProposalDefaultPageController::class, 'create'])->name('proposal-setup.default-pages.create');
-        Route::post('sales-proposal/default-pages', [ProposalDefaultPageController::class, 'store'])->name('proposal-setup.default-pages.store');
-        Route::get('sales-proposal/default-pages/{defaultPage}/edit', [ProposalDefaultPageController::class, 'edit'])->name('proposal-setup.default-pages.edit');
-        Route::match(['put', 'patch'], 'sales-proposal/default-pages/{defaultPage}', [ProposalDefaultPageController::class, 'update'])->name('proposal-setup.default-pages.update');
-        Route::delete('sales-proposal/default-pages/{defaultPage}', [ProposalDefaultPageController::class, 'destroy'])->name('proposal-setup.default-pages.destroy');
+        Route::post('sales-proposal/pages/reorder', [ProposalPageController::class, 'reorder'])->name('proposal-setup.pages.reorder');
+        Route::get('sales-proposal/pages/create', [ProposalPageController::class, 'create'])->name('proposal-setup.pages.create');
+        Route::post('sales-proposal/pages', [ProposalPageController::class, 'store'])->name('proposal-setup.pages.store');
+        Route::get('sales-proposal/pages/{page}/edit', [ProposalPageController::class, 'edit'])->name('proposal-setup.pages.edit');
+        Route::match(['put', 'patch'], 'sales-proposal/pages/{page}', [ProposalPageController::class, 'update'])->name('proposal-setup.pages.update');
+        Route::delete('sales-proposal/pages/{page}', [ProposalPageController::class, 'destroy'])->name('proposal-setup.pages.destroy');
         Route::resource('sales-proposal/subjects', ProposalSubjectController::class)->names([
             'index' => 'proposal-setup.subjects.index',
             'store' => 'proposal-setup.subjects.store',
@@ -198,7 +198,7 @@ Route::post('/cookie-consent-log', [SettingController::class, 'logCookieConsent'
 
 
 // Public Proposal Print
-Route::get('sales-proposals/print/{token}', [SalesProposalController::class, 'publicPrint'])->name('sales-proposals.public-print');
+Route::get('sales-proposals/print/{token}', [ProposalController::class, 'publicPrint'])->name('sales-proposals.public-print');
 
 // Public Invoice
 Route::get('invoice/view/{token}', [SalesInvoiceController::class, 'clientInvoice'])->name('sales-invoice.client.view');

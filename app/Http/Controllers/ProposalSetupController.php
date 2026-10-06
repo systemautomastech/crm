@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProposalDefaultPage;
+use App\Models\ProposalPage;
 use App\Models\ProposalSetting;
 use App\Models\ProposalSubject;
 use Illuminate\Http\Request;
@@ -22,7 +22,7 @@ class ProposalSetupController extends Controller
 
         $settings = ProposalSetting::getSettings($creatorId);
 
-        $defaultPages = ProposalDefaultPage::with('authorUser:id,name,email')
+        $pages = ProposalPage::with('authorUser:id,name,email')
             ->where('created_by', $creatorId)
             ->where(function ($query) use ($creatorId) {
                 $query->where('creator_id', Auth::id())
@@ -35,9 +35,9 @@ class ProposalSetupController extends Controller
             ->latest()
             ->get();
 
-        return Inertia::render('SalesProposalSetup/Index', [
+        return Inertia::render('ProposalSetup/Index', [
             'settings' => $settings,
-            'defaultPages' => $defaultPages,
+            'pages' => $pages,
             'subjects' => $subjects,
         ]);
     }
@@ -64,13 +64,15 @@ class ProposalSetupController extends Controller
             return;
 
         // 1. OTC Page
-        $otc = ProposalDefaultPage::where('created_by', $creatorId)
+        $otc = ProposalPage::where('created_by', $creatorId)
             ->where('page_type', 'otc')
             ->first();
 
         if (!$otc) {
-            $maxOrder = ProposalDefaultPage::where('created_by', $creatorId)->max('sort_order') ?? 0;
-            ProposalDefaultPage::create([
+            $maxOrder = ProposalPage::where('created_by', $creatorId)
+                ->max('sort_order') ?? 0;
+
+            ProposalPage::create([
                 'title' => 'One-Time Charges (OTC)',
                 'content' => '',
                 'page_type' => 'otc',
@@ -82,13 +84,15 @@ class ProposalSetupController extends Controller
         }
 
         // 2. MRC Page
-        $mrc = ProposalDefaultPage::where('created_by', $creatorId)
+        $mrc = ProposalPage::where('created_by', $creatorId)
             ->where('page_type', 'mrc')
             ->first();
 
         if (!$mrc) {
-            $maxOrder = ProposalDefaultPage::where('created_by', $creatorId)->max('sort_order') ?? 0;
-            ProposalDefaultPage::create([
+            $maxOrder = ProposalPage::where('created_by', $creatorId)
+                ->max('sort_order') ?? 0;
+                
+            ProposalPage::create([
                 'title' => 'Monthly Recurring Charges (MRC)',
                 'content' => '',
                 'page_type' => 'mrc',

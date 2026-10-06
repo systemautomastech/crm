@@ -11,6 +11,7 @@ export interface User {
 }
 
 export interface NavItem {
+    id?: string;
     title: string;
     href?: string;
     icon?: LucideIcon;
@@ -21,6 +22,7 @@ export interface NavItem {
     name?: string;
     order?: number;
     module?: string;
+    activeRoutes?: string[];
 }
 
 export type PageProps<

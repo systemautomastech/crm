@@ -3,14 +3,14 @@
 namespace App\Services;
 
 use App\Models\EmailTemplate;
-use App\Models\ProposalDefaultPage;
+use App\Models\ProposalPage;
 use App\Models\SalesInvoice;
 use App\Models\SalesInvoiceItem;
 use App\Models\SalesInvoiceItemTax;
-use App\Models\SalesProposal;
-use App\Models\SalesProposalContent;
-use App\Models\SalesProposalItem;
-use App\Models\SalesProposalItemTax;
+use App\Models\Proposal;
+use App\Models\ProposalContent;
+use App\Models\ProposalItem;
+use App\Models\ProposalItemTax;
 use App\Models\User;
 use App\Models\UserGroup;
 use Automas\ProductService\Models\ProductServiceItem;
@@ -29,18 +29,18 @@ class ProposalService
     ) {
     }
 
-    public function getProposalRelations(): array
+    public function getRelations(): array
     {
         $relations = ['customer', 'items.product.unitRelation', 'items.taxes', 'warehouse'];
 
-        if (Schema::hasTable('sales_proposal_contents')) {
+        if (Schema::hasTable('proposal_contents')) {
             $relations[] = 'contents';
         }
 
         return $relations;
     }
 
-    public function hasProposalAccess(SalesProposal $proposal): bool
+    public function hasProposalAccess(Proposal $proposal): bool
     {
         if ($proposal->created_by != creatorId()) {
             return false;
@@ -67,10 +67,10 @@ class ProposalService
         return false;
     }
 
-    public function getActiveDefaultPages(int $authorId, ?int $creatorId = null)
+    public function getActivePages(int $authorId, ?int $creatorId = null)
     {
-        $creatorId = $creatorId ?? Auth::check() ? creatorId() : $authorId;
-        return ProposalDefaultPage::where('created_by', $creatorId)
+        $creatorId = $creatorId ?? (Auth::check() ? creatorId() : $authorId);
+        return ProposalPage::where('created_by', $creatorId)
             ->where(function ($query) use ($authorId, $creatorId) {
                 $query->where('creator_id', $authorId)
                     ->orWhere('creator_id', $creatorId);
@@ -80,8 +80,7 @@ class ProposalService
             ->get(['id', 'title', 'content', 'page_type', 'background_image', 'sort_order', 'creator_id', 'created_by']);
     }
 
-
-    public function notifyCustomerOnStatusChange(SalesProposal $proposal, string $templateName, ?string $statusLabel = null): ?array
+    public function notifyCustomerOnStatusChange(Proposal $proposal, string $templateName, ?string $statusLabel = null): ?array
     {
         $recipient = null;
 
@@ -110,30 +109,9 @@ class ProposalService
         return EmailTemplate::sendEmailTemplate($templateName, [$recipient], $data);
     }
 
-    public function getProposalsQuery($user)
+    public function getStats($query): array
     {
-        return SalesProposal::with(['customer', 'author', 'items'])
-            ->where(function ($query) use ($user) {
-                if ($user->type === 'superadmin' || $user->type === 'company' || $user->can('manage-any-sales-proposals')) {
-                    $query->where('created_by', creatorId());
-                } elseif ($user->can('manage-own-sales-proposals')) {
-                    $query->where('created_by', creatorId())
-                        ->where(function ($q) use ($user) {
-                            $q->where('creator_id', $user->id)
-                                ->orWhere('customer_id', $user->id);
-                        });
-                    if ($user->type === 'client') {
-                        $query->where('status', '!=', 'draft');
-                    }
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
-            });
-    }
-
-    public function getAggregatedStats($baseQuery): array
-    {
-        $stats = (clone $baseQuery)->withoutEagerLoads()
+        $stats = (clone $query)->withoutEagerLoads()
             ->selectRaw('
                 COUNT(*) as total_count,
                 SUM(total_amount) as total_value,
@@ -166,20 +144,20 @@ class ProposalService
         ];
     }
 
-    public function getBoardData($baseQuery): array
+    public function getBoardData($query): array
     {
         $boardData = [];
+        $baseQuery = (clone $query)->withoutEagerLoads()->with(['customer', 'author']);
+
         foreach (['draft', 'sent', 'accepted', 'rejected'] as $status) {
-            $query = (clone $baseQuery)->where('status', $status);
+            $queryStatus = (clone $baseQuery)->where('status', $status);
             if ($status === 'accepted') {
-                $query->whereNull('converted_to_invoice');
+                $queryStatus->whereNull('converted_to_invoice');
             }
-            $boardData[$status] = $query->orderBy('created_at', 'desc')->limit(8)->get();
+            $boardData[$status] = $queryStatus->orderBy('created_at', 'desc')->limit(8)->get();
         }
         return $boardData;
     }
-
-
 
     public function hasRecurringBillingItems(?array $items): bool
     {
@@ -277,128 +255,146 @@ class ProposalService
         ];
     }
 
-    public function createProposal(Request $request): SalesProposal
+    public function createProposal(array $data): Proposal
     {
-        return DB::transaction(function () use ($request) {
-            $isTaxEnabled = filter_var($request->input('is_tax_enabled', true), FILTER_VALIDATE_BOOLEAN);
-            $totals = $this->calculateProposalTotals($request->items, $isTaxEnabled, $request->all());
+        return DB::transaction(function () use ($data) {
+            $isTaxEnabled = filter_var($data['is_tax_enabled'] ?? true, FILTER_VALIDATE_BOOLEAN);
+            $items = $data['items'] ?? [];
+            $totals = $this->calculateProposalTotals($items, $isTaxEnabled, $data);
 
-            $hasRecurring = $this->hasRecurringBillingItems($request->items);
+            $hasRecurring = $this->hasRecurringBillingItems($items);
             $isRecurring = $hasRecurring ? 1 : 0;
-            $isPrepaid = ($hasRecurring && filter_var($request->input('is_prepaid', false), FILTER_VALIDATE_BOOLEAN)) ? 1 : 0;
+            $isPrepaid = ($hasRecurring && filter_var($data['is_prepaid'] ?? false, FILTER_VALIDATE_BOOLEAN)) ? 1 : 0;
 
-            $proposal = new SalesProposal();
-            $proposal->proposal_number = SalesProposal::generateProposalNumber($request->invoice_date ?? $request->proposal_date);
-            $proposal->reference = $request->reference;
-            $proposal->subject = $request->subject;
-            $proposal->proposal_date = $request->invoice_date ?? $request->proposal_date;
-            $proposal->due_date = $request->due_date ?? $proposal->proposal_date;
-            $proposal->status = 'draft';
+            $date = $data['invoice_date'] ?? $data['proposal_date'] ?? now()->toDateString();
+            $mode = $data['customer_mode'] ?? 'existing';
 
-            $mode = $request->input('customer_mode', 'existing');
-            if ($mode === 'new') {
-                $proposal->customer_id = null;
-                $proposal->customer_name = $request->customer_name;
-                $proposal->customer_email = $request->customer_email;
-                $proposal->customer_phone = $request->customer_phone;
-                $proposal->customer_address = $request->customer_address;
-            } else {
-                $proposal->customer_id = $request->customer_id;
-                $proposal->customer_name = null;
-                $proposal->customer_email = null;
-                $proposal->customer_phone = null;
-                $proposal->customer_address = null;
-            }
+            $proposalData = array_merge($data, [
+                'proposal_number' => Proposal::generateProposalNumber($date),
+                'proposal_date' => $date,
+                'due_date' => $data['due_date'] ?? $date,
+                'status' => 'draft',
+                'customer_id' => $mode === 'new' ? null : ($data['customer_id'] ?? null),
+                'customer_name' => $mode === 'new' ? ($data['customer_name'] ?? null) : null,
+                'customer_email' => $mode === 'new' ? ($data['customer_email'] ?? null) : null,
+                'customer_phone' => $mode === 'new' ? ($data['customer_phone'] ?? null) : null,
+                'customer_address' => $mode === 'new' ? ($data['customer_address'] ?? null) : null,
+                'warehouse_id' => ($data['type'] ?? 'product') === 'product' ? ($data['warehouse_id'] ?? null) : null,
+                'is_recurring' => $isRecurring,
+                'is_prepaid' => $isPrepaid,
+                'is_tax_enabled' => $isTaxEnabled ? 1 : 0,
+                'subtotal' => $totals['subtotal'],
+                'tax_amount' => $totals['tax_amount'],
+                'discount_amount' => $totals['discount_amount'],
+                'total_amount' => $totals['total_amount'],
+                'creator_id' => Auth::id(),
+                'created_by' => creatorId(),
+            ]);
 
-            $proposal->warehouse_id = $request->type === 'product' ? $request->warehouse_id : null;
-            $proposal->type = $request->type ?? 'product';
-            $proposal->is_recurring = $isRecurring;
-            $proposal->is_prepaid = $isPrepaid;
-            $proposal->is_tax_enabled = $isTaxEnabled ? 1 : 0;
-            $proposal->otc_discount_type = $request->input('otc_discount_type', 'percentage');
-            $proposal->otc_discount_value = (float) $request->input('otc_discount_value', 0);
-            $proposal->mrc_discount_type = $request->input('mrc_discount_type', 'percentage');
-            $proposal->mrc_discount_value = (float) $request->input('mrc_discount_value', 0);
-            $proposal->payment_terms = $request->payment_terms;
-            $proposal->notes = $request->notes;
-            $proposal->subtotal = $totals['subtotal'];
-            $proposal->tax_amount = $totals['tax_amount'];
-            $proposal->discount_amount = $totals['discount_amount'];
-            $proposal->total_amount = $totals['total_amount'];
-            $proposal->creator_id = Auth::id();
-            $proposal->created_by = creatorId();
-            $proposal->save();
+            $proposal = Proposal::create($proposalData);
 
-            $this->saveProposalItems($proposal->id, $request->items, $isTaxEnabled);
-            $this->saveProposalPageContents($proposal->id, $request->proposal_content);
+            $this->saveProposalItems($proposal->id, $items, $isTaxEnabled);
+            $this->saveProposalPageContents($proposal->id, $data['proposal_content'] ?? null);
 
             return $proposal;
         });
     }
 
-    public function updateProposal(SalesProposal $salesProposal, Request $request): SalesProposal
+    public function updateProposal(Proposal $proposal, array $data): Proposal
     {
-        return DB::transaction(function () use ($salesProposal, $request) {
-            $isTaxEnabled = filter_var($request->input('is_tax_enabled', true), FILTER_VALIDATE_BOOLEAN);
-            $totals = $this->calculateProposalTotals($request->items, $isTaxEnabled, $request->all());
+        return DB::transaction(function () use ($proposal, $data) {
+            $isTaxEnabled = filter_var($data['is_tax_enabled'] ?? true, FILTER_VALIDATE_BOOLEAN);
+            $items = $data['items'] ?? [];
+            $totals = $this->calculateProposalTotals($items, $isTaxEnabled, $data);
 
-            $hasRecurring = $this->hasRecurringBillingItems($request->items);
+            $hasRecurring = $this->hasRecurringBillingItems($items);
             $isRecurring = $hasRecurring ? 1 : 0;
-            $isPrepaid = ($hasRecurring && filter_var($request->input('is_prepaid', false), FILTER_VALIDATE_BOOLEAN)) ? 1 : 0;
+            $isPrepaid = ($hasRecurring && filter_var($data['is_prepaid'] ?? false, FILTER_VALIDATE_BOOLEAN)) ? 1 : 0;
 
-            $salesProposal->subject = $request->subject;
-            $salesProposal->reference = $request->reference;
-            $salesProposal->proposal_date = $request->invoice_date;
-            $salesProposal->due_date = $request->due_date;
+            $date = $data['invoice_date'] ?? $data['proposal_date'] ?? $proposal->proposal_date;
+            $mode = $data['customer_mode'] ?? 'existing';
+            $type = $data['type'] ?? $proposal->type ?? 'product';
 
-            $mode = $request->input('customer_mode', 'existing');
-            if ($mode === 'new') {
-                $salesProposal->customer_id = null;
-                $salesProposal->customer_name = $request->customer_name;
-                $salesProposal->customer_email = $request->customer_email;
-                $salesProposal->customer_phone = $request->customer_phone;
-                $salesProposal->customer_address = $request->customer_address;
-            } else {
-                $salesProposal->customer_id = $request->customer_id;
-                $salesProposal->customer_name = null;
-                $salesProposal->customer_email = null;
-                $salesProposal->customer_phone = null;
-                $salesProposal->customer_address = null;
-            }
+            $updateData = array_merge($data, [
+                'type' => $type,
+                'proposal_date' => $date,
+                'due_date' => $data['due_date'] ?? $proposal->due_date,
+                'customer_id' => $mode === 'new' ? null : ($data['customer_id'] ?? null),
+                'customer_name' => $mode === 'new' ? ($data['customer_name'] ?? null) : null,
+                'customer_email' => $mode === 'new' ? ($data['customer_email'] ?? null) : null,
+                'customer_phone' => $mode === 'new' ? ($data['customer_phone'] ?? null) : null,
+                'customer_address' => $mode === 'new' ? ($data['customer_address'] ?? null) : null,
+                'warehouse_id' => $type === 'product' ? ($data['warehouse_id'] ?? null) : null,
+                'is_recurring' => $isRecurring,
+                'is_prepaid' => $isPrepaid,
+                'is_tax_enabled' => $isTaxEnabled ? 1 : 0,
+                'subtotal' => $totals['subtotal'],
+                'tax_amount' => $totals['tax_amount'],
+                'discount_amount' => $totals['discount_amount'],
+                'total_amount' => $totals['total_amount'],
+            ]);
 
-            $salesProposal->warehouse_id = $salesProposal->type === 'product' ? $request->warehouse_id : null;
-            $salesProposal->is_recurring = $isRecurring;
-            $salesProposal->is_prepaid = $isPrepaid;
-            $salesProposal->is_tax_enabled = $isTaxEnabled ? 1 : 0;
-            $salesProposal->otc_discount_type = $request->input('otc_discount_type', 'percentage');
-            $salesProposal->otc_discount_value = (float) $request->input('otc_discount_value', 0);
-            $salesProposal->mrc_discount_type = $request->input('mrc_discount_type', 'percentage');
-            $salesProposal->mrc_discount_value = (float) $request->input('mrc_discount_value', 0);
-            $salesProposal->payment_terms = $request->payment_terms;
-            $salesProposal->notes = $request->notes;
-            $salesProposal->subtotal = $totals['subtotal'];
-            $salesProposal->tax_amount = $totals['tax_amount'];
-            $salesProposal->discount_amount = $totals['discount_amount'];
-            $salesProposal->total_amount = $totals['total_amount'];
-            $salesProposal->save();
+            $proposal->update($updateData);
 
-            $salesProposal->items()->delete();
-            $this->saveProposalItems($salesProposal->id, $request->items, $isTaxEnabled);
-            $this->saveProposalPageContents($salesProposal->id, $request->proposal_content);
+            $proposal->items()->delete();
+            $this->saveProposalItems($proposal->id, $items, $isTaxEnabled);
+            $this->saveProposalPageContents($proposal->id, $data['proposal_content'] ?? null);
 
-            return $salesProposal;
+            return $proposal;
         });
     }
 
-    public function convertProposalToSalesOrder(SalesProposal $salesProposal, ?array $customItems = null, ?int $warehouseId = null, array $options = []): SalesOrder
+    public function duplicateProposal(Proposal $proposal): Proposal
     {
-        return DB::transaction(function () use ($salesProposal, $customItems, $warehouseId, $options) {
-            $targetWarehouseId = $warehouseId ?: $salesProposal->warehouse_id;
+        return DB::transaction(function () use ($proposal) {
+            $newProposal = $proposal->replicate();
+            $newProposal->proposal_number = Proposal::generateProposalNumber($proposal->proposal_date);
+            $newProposal->status = 'draft';
+            $newProposal->converted_to_sales_order = false;
+            $newProposal->sales_order_id = null;
+            $newProposal->converted_to_invoice = null;
+            $newProposal->converted_to_deal = null;
+            $newProposal->creator_id = Auth::id();
+            $newProposal->created_by = creatorId();
+            $newProposal->save();
+
+            $items = $proposal->items()->with('taxes')->get();
+            foreach ($items as $item) {
+                $newItem = $item->replicate();
+                $newItem->proposal_id = $newProposal->id;
+                $newItem->save();
+
+                foreach ($item->taxes as $tax) {
+                    $newTax = $tax->replicate();
+                    $newTax->item_id = $newItem->id;
+                    $newTax->save();
+                }
+            }
+
+            if (Schema::hasTable('proposal_contents')) {
+                $contents = ProposalContent::where('proposal_id', $proposal->id)->get();
+                foreach ($contents as $content) {
+                    $newContent = $content->replicate();
+                    $newContent->proposal_id = $newProposal->id;
+                    $newContent->creator_id = Auth::id();
+                    $newContent->created_by = creatorId();
+                    $newContent->save();
+                }
+            }
+
+            return $newProposal;
+        });
+    }
+
+    public function convertProposalToSalesOrder(Proposal $proposal, ?array $customItems = null, ?int $warehouseId = null, array $options = []): SalesOrder
+    {
+        return DB::transaction(function () use ($proposal, $customItems, $warehouseId, $options) {
+            $targetWarehouseId = $warehouseId ?: $proposal->warehouse_id;
 
             // Handle Customer resolution (existing or new)
-            $customerId = $salesProposal->customer_id;
-            $billingAddress = $salesProposal->customer_address;
-            $shippingAddress = $salesProposal->customer_address;
+            $customerId = $proposal->customer_id;
+            $billingAddress = $proposal->customer_address;
+            $shippingAddress = $proposal->customer_address;
 
             if (!empty($options['customer_type'])) {
                 if ($options['customer_type'] === 'new' && !empty($options['customer_name'])) {
@@ -407,21 +403,21 @@ class ProposalService
                         'customer_name' => $options['customer_name'],
                         'company_name' => $options['customer_name'],
                         'contact_person_name' => $options['customer_name'],
-                        'customer_email' => $options['customer_email'] ?? $salesProposal->customer_email,
-                        'contact_person_email' => $options['customer_email'] ?? $salesProposal->customer_email,
-                        'customer_phone' => $options['customer_phone'] ?? $salesProposal->customer_phone,
-                        'contact_person_mobile' => $options['customer_phone'] ?? $salesProposal->customer_phone,
+                        'customer_email' => $options['customer_email'] ?? $proposal->customer_email,
+                        'contact_person_email' => $options['customer_email'] ?? $proposal->customer_email,
+                        'customer_phone' => $options['customer_phone'] ?? $proposal->customer_phone,
+                        'contact_person_mobile' => $options['customer_phone'] ?? $proposal->customer_phone,
                         'tax_number' => $options['tax_number'] ?? null,
                         'payment_terms' => $options['payment_terms'] ?? null,
                         'billing_name' => $options['billing_name'] ?? $options['customer_name'],
-                        'billing_address' => $options['billing_address_line_1'] ?? $options['billing_address'] ?? $options['customer_address'] ?? $salesProposal->customer_address,
+                        'billing_address' => $options['billing_address_line_1'] ?? $options['billing_address'] ?? $options['customer_address'] ?? $proposal->customer_address,
                         'billing_address_line_2' => $options['billing_address_line_2'] ?? null,
                         'billing_city' => $options['billing_city'] ?? $options['customer_city'] ?? null,
                         'billing_state' => $options['billing_state'] ?? $options['customer_state'] ?? null,
                         'billing_zip_code' => $options['billing_zip_code'] ?? $options['billing_postal_code'] ?? $options['customer_zip_code'] ?? null,
                         'billing_country' => $options['billing_country'] ?? $options['customer_country'] ?? null,
                         'shipping_name' => $options['shipping_name'] ?? $options['customer_name'],
-                        'shipping_address' => $options['shipping_address_line_1'] ?? $options['shipping_address'] ?? $options['customer_address'] ?? $salesProposal->customer_address,
+                        'shipping_address' => $options['shipping_address_line_1'] ?? $options['shipping_address'] ?? $options['customer_address'] ?? $proposal->customer_address,
                         'shipping_address_line_2' => $options['shipping_address_line_2'] ?? null,
                         'shipping_city' => $options['shipping_city'] ?? $options['customer_city'] ?? null,
                         'shipping_state' => $options['shipping_state'] ?? $options['customer_state'] ?? null,
@@ -449,7 +445,7 @@ class ProposalService
                     return !empty($item['product_id']) && (int) $item['product_id'] > 0;
                 }));
             } else {
-                $dbItems = $salesProposal->items()->with(['taxes', 'product'])->get();
+                $dbItems = $proposal->items()->with(['taxes', 'product'])->get();
                 foreach ($dbItems as $item) {
                     $type = $item->product_type ?: ($item->product?->type ?? 'product');
                     $productItems[] = [
@@ -552,8 +548,8 @@ class ProposalService
             }
 
             $salesOrder = SalesOrder::create([
-                'name' => !empty($options['order_name']) ? $options['order_name'] : ($salesProposal->subject ?: ($salesProposal->proposal_number ?? 'From Proposal')),
-                'proposal_id' => $salesProposal->id,
+                'name' => !empty($options['order_name']) ? $options['order_name'] : ($proposal->subject ?: ($proposal->proposal_number ?? 'From Proposal')),
+                'proposal_id' => $proposal->id,
                 'status' => SalesOrder::STATUS_CONFIRMED,
                 'delivery_status' => SalesOrder::DELIVERY_STATUS_PENDING,
                 'assignment_status' => $assignmentStatus,
@@ -561,17 +557,17 @@ class ProposalService
                 'customer_id' => $customerId,
                 'warehouse_id' => $targetWarehouseId,
                 'order_date' => now()->toDateString(),
-                'expected_delivery_date' => $salesProposal->due_date ? $salesProposal->due_date->format('Y-m-d') : now()->addDays(15)->format('Y-m-d'),
+                'expected_delivery_date' => $proposal->due_date ? $proposal->due_date->format('Y-m-d') : now()->addDays(15)->format('Y-m-d'),
                 'billing_address' => $billingAddress,
                 'shipping_address' => $shippingAddress,
-                'description' => $salesProposal->subject,
-                'notes' => $salesProposal->notes,
+                'description' => $proposal->subject,
+                'notes' => $proposal->notes,
                 'subtotal' => round($subtotal, 2),
                 'tax_amount' => round($taxAmount, 2),
                 'discount_amount' => round($discountAmount, 2),
                 'total_amount' => round($totalAmount, 2),
                 'confirmed_at' => now(),
-                'creator_id' => Auth::id() ?: ($salesProposal->creator_id ?: creatorId()),
+                'creator_id' => Auth::id() ?: ($proposal->creator_id ?: creatorId()),
                 'created_by' => creatorId(),
             ]);
 
@@ -626,7 +622,7 @@ class ProposalService
                 $salesOrder->assignedUsers()->sync($validIds);
             }
 
-            $salesProposal->update([
+            $proposal->update([
                 'converted_to_sales_order' => true,
                 'sales_order_id' => $salesOrder->id,
             ]);
@@ -635,10 +631,10 @@ class ProposalService
         });
     }
 
-    public function convertProposalToInvoice(SalesProposal $salesProposal, ?array $customItems = null, ?int $warehouseId = null): SalesInvoice
+    public function convertProposalToInvoice(Proposal $proposal, ?array $customItems = null, ?int $warehouseId = null): SalesInvoice
     {
-        return DB::transaction(function () use ($salesProposal, $customItems, $warehouseId) {
-            $targetWarehouseId = $warehouseId ?: $salesProposal->warehouse_id;
+        return DB::transaction(function () use ($proposal, $customItems, $warehouseId) {
+            $targetWarehouseId = $warehouseId ?: $proposal->warehouse_id;
 
             $productItems = [];
             if ($customItems !== null) {
@@ -646,7 +642,7 @@ class ProposalService
                     return !empty($item['product_id']) && (int) $item['product_id'] > 0;
                 }));
             } else {
-                $dbItems = $salesProposal->items()->with(['taxes', 'product'])->get();
+                $dbItems = $proposal->items()->with(['taxes', 'product'])->get();
                 foreach ($dbItems as $item) {
                     $type = $item->product_type ?: ($item->product?->type ?? 'product');
                     $productItems[] = [
@@ -742,16 +738,16 @@ class ProposalService
 
             $invoice = new SalesInvoice();
             $invoice->invoice_date = now()->format('Y-m-d');
-            $invoice->due_date = $salesProposal->due_date ? $salesProposal->due_date->format('Y-m-d') : now()->addDays(15)->format('Y-m-d');
-            $invoice->customer_id = $salesProposal->customer_id;
-            $invoice->customer_name = $salesProposal->customer_name;
-            $invoice->customer_email = $salesProposal->customer_email;
-            $invoice->customer_phone = $salesProposal->customer_phone;
-            $invoice->customer_address = $salesProposal->customer_address;
+            $invoice->due_date = $proposal->due_date ? $proposal->due_date->format('Y-m-d') : now()->addDays(15)->format('Y-m-d');
+            $invoice->customer_id = $proposal->customer_id;
+            $invoice->customer_name = $proposal->customer_name;
+            $invoice->customer_email = $proposal->customer_email;
+            $invoice->customer_phone = $proposal->customer_phone;
+            $invoice->customer_address = $proposal->customer_address;
             $invoice->warehouse_id = $targetWarehouseId;
             $invoice->type = 'product';
-            $invoice->payment_terms = $salesProposal->payment_terms;
-            $invoice->notes = $salesProposal->notes;
+            $invoice->payment_terms = $proposal->payment_terms;
+            $invoice->notes = $proposal->notes;
             $invoice->subtotal = round($subtotal, 2);
             $invoice->tax_amount = round($taxAmount, 2);
             $invoice->discount_amount = round($discountAmount, 2);
@@ -760,7 +756,7 @@ class ProposalService
             $invoice->paid_amount = 0;
             $invoice->balance_amount = round($totalAmount, 2);
             $invoice->status = 'draft';
-            $invoice->creator_id = Auth::id() ?: ($salesProposal->creator_id ?: creatorId());
+            $invoice->creator_id = Auth::id() ?: ($proposal->creator_id ?: creatorId());
             $invoice->created_by = creatorId();
             $invoice->save();
 
@@ -793,7 +789,7 @@ class ProposalService
                 }
             }
 
-            $salesProposal->update([
+            $proposal->update([
                 'converted_to_invoice' => true,
             ]);
 
@@ -837,7 +833,7 @@ class ProposalService
             $taxAmt = $isTaxEnabled ? (($afterDisc * $taxRate) / 100) : 0;
             $totalAmt = max(0, $afterDisc + $taxAmt);
 
-            $proposalItem = new SalesProposalItem();
+            $proposalItem = new ProposalItem();
             $proposalItem->proposal_id = $proposalId;
             $proposalItem->product_id = $item['product_id'];
             $proposalItem->section = $item['section'] ?? 'otc';
@@ -855,7 +851,7 @@ class ProposalService
 
             if ($isTaxEnabled && !empty($item['taxes']) && is_array($item['taxes'])) {
                 foreach ($item['taxes'] as $tax) {
-                    $itemTax = new SalesProposalItemTax();
+                    $itemTax = new ProposalItemTax();
                     $itemTax->item_id = $proposalItem->id;
                     $itemTax->tax_name = $tax['tax_name'] ?? 'Tax';
                     $itemTax->tax_rate = (float) ($tax['tax_rate'] ?? $tax['rate'] ?? 0);
@@ -867,13 +863,13 @@ class ProposalService
 
     public function saveProposalPageContents(int $proposalId, $contents): void
     {
-        if (!Schema::hasTable('sales_proposal_contents')) {
+        if (!Schema::hasTable('proposal_contents')) {
             return;
         }
 
         try {
-            if (Schema::hasColumn('sales_proposal_contents', 'proposal_id')) {
-                SalesProposalContent::where('proposal_id', $proposalId)->delete();
+            if (Schema::hasColumn('proposal_contents', 'proposal_id')) {
+                ProposalContent::where('proposal_id', $proposalId)->delete();
             }
         } catch (\Throwable $th) {
             // Silently catch
@@ -888,7 +884,7 @@ class ProposalService
             return;
         }
 
-        $proposal = SalesProposal::find($proposalId);
+        $proposal = Proposal::find($proposalId);
         $authorUserId = $proposal?->creator_id ?? Auth::id();
         $authorUser = $authorUserId ? User::find($authorUserId) : null;
 
@@ -950,10 +946,10 @@ class ProposalService
                 $html = $replaceUserCodes($html);
             }
 
-            SalesProposalContent::create([
+            ProposalContent::create([
                 'proposal_id' => $proposalId,
                 'title' => $title,
-                'content' => $html ?? $serialized,
+                'content' => is_array($item) ? ($html ?? '') : ($html ?? $serialized),
                 'page_type' => $pageType,
                 'background_image' => $bg,
                 'order' => $order,
