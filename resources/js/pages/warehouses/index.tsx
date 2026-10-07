@@ -43,7 +43,7 @@ export default function Index() {
     useFlashMessages();
 
     // Add hook here
-    const pageButtons = usePageButtons('warehouseBtn','Test data');
+    const pageButtons = usePageButtons('warehouseBtn', 'Test data');
     const googleDriveBtn = usePageButtons('googleDriveBtn', { module: 'Warehouse', settingKey: 'GoogleDrive Warehouse' });
     const oneDriveBtn = usePageButtons('oneDriveBtn', { module: 'Warehouse', settingKey: 'OneDrive Warehouse' });
     const dropboxBtn = usePageButtons('dropboxBtn', { module: 'Warehouse', settingKey: 'Dropbox Warehouse' });
@@ -245,17 +245,12 @@ export default function Index() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        // onClick={() => {
-                                        //     if ((warehouse.stock_quantity ?? 0) > 0 || (warehouse.product_count ?? 0) > 0) {
-                                        //         setStockWarningTarget(warehouse);
-                                        //     } else {
-                                        //         openDeleteDialog(warehouse.id);
-                                        //     }
-                                        // }}
                                         onClick={() => {
-                                            
+                                            if ((warehouse.stock_quantity ?? 0) > 0 || (warehouse.product_count ?? 0) > 0) {
+                                                setStockWarningTarget(warehouse);
+                                            } else {
                                                 openDeleteDialog(warehouse.id);
-                                        
+                                            }
                                         }}
                                         className="h-8 w-8 p-0 text-red-600"
                                     >
@@ -275,7 +270,7 @@ export default function Index() {
 
     return (
         <AuthenticatedLayout
-            breadcrumbs={[{label: t('Purchase')}, {label: t('Warehouses')}]}
+            breadcrumbs={[{ label: t('Purchase') }, { label: t('Warehouses') }]}
             pageTitle={t('Manage Warehouses')}
             pageActions={
                 <div className="flex gap-2">
