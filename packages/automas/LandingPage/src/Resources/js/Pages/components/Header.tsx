@@ -36,13 +36,26 @@ export default function Header({ settings }: HeaderProps) {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const navigationItems = sectionData.navigation_items || [
+    const customNavItems = sectionData.navigation_items || [
         { text: 'Features', href: '#features' },
         { text: 'Modules', href: '#modules' },
         { text: 'Pricing', href: '#pricing' },
         { text: 'Demo', href: '#demo' },
         { text: 'About', href: '#about' },
     ];
+
+    const extraNav = [
+        { text: 'Home', href: '/' },
+        { text: 'Call Center', href: route('call-center.page') },
+        { text: 'CRM', href: '#modules' },
+    ];
+
+    // Filter out duplicates if present in customNavItems
+    const filteredCustom = customNavItems.filter((item: any) =>
+        !['home', 'call center', 'crm'].includes(String(item.text).toLowerCase())
+    );
+
+    const navigationItems = [...extraNav, ...filteredCustom];
 
     const renderNavItems = (isMobile = false) => {
         return navigationItems.map((item: any, idx: number) => {
@@ -92,12 +105,6 @@ export default function Header({ settings }: HeaderProps) {
                     <div className="hidden lg:flex items-center gap-8">
                         {renderNavItems()}
 
-                        {sectionData?.enable_addon_link !== false && (
-                            <Link href={route('addons.page')} className="text-sm font-medium text-slate-600 hover:opacity-80 transition-colors">
-                                {t('Add-Ons')}
-                            </Link>
-                        )}
-
                         {sectionData?.enable_pricing_link !== false && (
                             <Link href={route('pricing.page')} className="text-sm font-medium text-slate-600 hover:opacity-80 transition-colors">
                                 {t('Pricing')}
@@ -145,16 +152,6 @@ export default function Header({ settings }: HeaderProps) {
                 <div className="lg:hidden bg-white border-t border-slate-200/90 shadow-2xl px-6 py-6 space-y-4">
                     <div className="space-y-1">
                         {renderNavItems(true)}
-
-                        {sectionData?.enable_addon_link !== false && (
-                            <Link
-                                href={route('addons.page')}
-                                className="block py-2.5 text-base font-medium text-slate-700 hover:text-slate-900 transition-colors"
-                                onClick={() => setMobileMenuOpen(false)}
-                            >
-                                {t('Add-Ons')}
-                            </Link>
-                        )}
 
                         {sectionData?.enable_pricing_link !== false && (
                             <Link

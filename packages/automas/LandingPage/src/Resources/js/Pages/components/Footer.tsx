@@ -116,7 +116,6 @@ export default function Footer({ settings }: FooterProps) {
                             {t('Pages')}
                         </h4>
                         <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
-                            <li><Link href={route('addons.page')} className="hover:text-white transition-colors">{t('Add-Ons')}</Link></li>
                             <li><Link href={route('pricing.page')} className="hover:text-white transition-colors">{t('Pricing')}</Link></li>
                             <li><a href="#contact" className="hover:text-white transition-colors">{t('Contact')}</a></li>
                         </ul>

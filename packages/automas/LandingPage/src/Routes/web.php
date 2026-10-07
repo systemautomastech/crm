@@ -40,6 +40,7 @@ Route::middleware(['web', 'auth'])->prefix('newsletter-subscribers')->name('news
 // Public landing page
 Route::middleware(['web'])->group(function () {
     Route::get('/', [LandingPageController::class, 'index'])->name('landing.page');
+    Route::get('/call-center', [LandingPageController::class, 'callCenter'])->name('call-center.page');
     Route::get('/addons', [LandingPageController::class, 'addons'])->name('addons.page');
     Route::get('/pricing', [LandingPageController::class, 'pricing'])->name('pricing.page');
     Route::get('/marketplace/{slug?}', [MarketplaceController::class, 'index'])->name('marketplace');
